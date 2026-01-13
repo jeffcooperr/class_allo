@@ -7,6 +7,8 @@
 
 // Global state
 let courseData = [];
+let buildingMetadata = {}; // Maps building name to {total_rooms, total_seats}
+let roomMetadata = {}; // Maps "building:room" to {capacity}
 let selectedDay = 'M';
 let selectedTime = 480; // 8:00 AM in minutes (default)
 
@@ -20,8 +22,12 @@ async function init() {
         if (!response.ok) {
             throw new Error(`Failed to load data: ${response.statusText}`);
         }
-        courseData = await response.json();
+        const data = await response.json();
+        courseData = data.courses || data; // Support both new and old format
+        buildingMetadata = data.buildingMetadata || {};
+        roomMetadata = data.roomMetadata || {};
         console.log(`Loaded ${courseData.length} course meeting records`);
+        console.log(`Found ${Object.keys(buildingMetadata).length} buildings with room data`);
         
         // Initialize UI components
         setupDaySelector();
@@ -153,6 +159,82 @@ function groupByBuilding(courses) {
 }
 
 /**
+ * Calculate the number of distinct rooms in use for a building
+ * @param {Array} courses - Array of course records for a building
+ * @returns {number} Number of distinct rooms in use
+ */
+function getRoomsInUse(courses) {
+    const rooms = new Set();
+    courses.forEach(course => {
+        rooms.add(course.room);
+    });
+    return rooms.size;
+}
+
+/**
+ * Calculate the total seats in use for a building
+ * Sums up current enrollment for all active courses
+ * @param {Array} courses - Array of course records for a building
+ * @returns {number} Total seats currently in use
+ */
+function getSeatsInUse(courses) {
+    return courses.reduce((total, course) => {
+        return total + (course.current_enrollment || 0);
+    }, 0);
+}
+
+/**
+ * Get room capacity from metadata
+ * @param {string} building - Building name
+ * @param {string} room - Room number
+ * @returns {number} Room capacity, or 0 if not found
+ */
+function getRoomCapacity(building, room) {
+    const roomKey = `${building}:${room}`;
+    const metadata = roomMetadata[roomKey];
+    return metadata ? (metadata.capacity || 0) : 0;
+}
+
+/**
+ * Get all rooms for a building from metadata
+ * @param {string} building - Building name
+ * @returns {Array} Array of room numbers
+ */
+function getAllRoomsForBuilding(building) {
+    const rooms = [];
+    for (const roomKey in roomMetadata) {
+        if (roomKey.startsWith(`${building}:`)) {
+            const room = roomKey.split(':')[1];
+            rooms.push(room);
+        }
+    }
+    // Sort rooms naturally (e.g., "101", "102", "201" instead of "101", "201", "102")
+    return rooms.sort((a, b) => {
+        // Try numeric sort first
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+        }
+        // Fall back to string sort
+        return a.localeCompare(b);
+    });
+}
+
+/**
+ * Get courses for a specific room at the current time
+ * @param {Array} courses - Array of all filtered courses
+ * @param {string} building - Building name
+ * @param {string} room - Room number
+ * @returns {Array} Array of courses in that room
+ */
+function getCoursesForRoom(courses, building, room) {
+    return courses.filter(course => 
+        course.building === building && course.room === room
+    );
+}
+
+/**
  * Render the main visualization
  */
 function renderVisualization() {
@@ -161,29 +243,54 @@ function renderVisualization() {
     // Filter courses based on current selections
     const filteredCourses = filterCourses();
     
-    if (filteredCourses.length === 0) {
+    // Get all buildings from metadata (not just those with active courses)
+    // This ensures we show all buildings even if none have classes at this time
+    const allBuildingNames = Object.keys(buildingMetadata).sort();
+    
+    if (allBuildingNames.length === 0) {
         container.innerHTML = `
             <p class="no-results">
-                No classes found for ${getDayName(selectedDay)} at ${formatTime(selectedTime)}
+                No building data available
             </p>
         `;
         return;
     }
     
-    // Group by building
-    const buildings = groupByBuilding(filteredCourses);
-    const buildingNames = Object.keys(buildings).sort();
-    
     // Build HTML
     let html = `<div class="buildings-grid">`;
     
-    buildingNames.forEach(building => {
-        const courses = buildings[building];
+    allBuildingNames.forEach(building => {
+        const buildingCourses = filteredCourses.filter(c => c.building === building);
+        const roomsInUse = getRoomsInUse(buildingCourses);
+        const seatsInUse = getSeatsInUse(buildingCourses);
+        const buildingInfo = buildingMetadata[building] || {};
+        const totalRooms = buildingInfo.total_rooms || 0;
+        const totalSeats = buildingInfo.total_seats || 0;
+        
+        // Get all rooms for this building
+        const allRooms = getAllRoomsForBuilding(building);
+        
         html += `
             <div class="building-container">
-                <h3 class="building-name">${building}</h3>
-                <div class="courses-list">
-                    ${courses.map(course => renderCourseCard(course)).join('')}
+                <div class="building-header">
+                    <h3 class="building-name">${building}</h3>
+                    <div class="utilization-stats">
+                        <div class="room-utilization">
+                            <span class="rooms-in-use">${roomsInUse}</span>
+                            <span class="rooms-separator">of</span>
+                            <span class="rooms-total">${totalRooms}</span>
+                            <span class="rooms-label">rooms in use</span>
+                        </div>
+                        <div class="seat-utilization">
+                            <span class="seats-in-use">${seatsInUse}</span>
+                            <span class="seats-separator">of</span>
+                            <span class="seats-total">${totalSeats}</span>
+                            <span class="seats-label">seats in use</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rooms-grid">
+                    ${allRooms.map(room => renderRoomBox(building, room, buildingCourses)).join('')}
                 </div>
             </div>
         `;
@@ -194,26 +301,77 @@ function renderVisualization() {
 }
 
 /**
- * Render a single course card
- * @param {Object} course - Course record
- * @returns {string} HTML string for course card
+ * Render a room box in the grid
+ * @param {string} building - Building name
+ * @param {string} room - Room number
+ * @param {Array} buildingCourses - All courses in this building at current time
+ * @returns {string} HTML string for room box
  */
-function renderCourseCard(course) {
-    const startTime = formatTime(course.start_minutes);
-    const endTime = formatTime(course.end_minutes);
+function renderRoomBox(building, room, buildingCourses) {
+    const roomCourses = getCoursesForRoom(buildingCourses, building, room);
+    const isInUse = roomCourses.length > 0;
+    const roomCapacity = getRoomCapacity(building, room);
+    
+    // Calculate total enrollment in this room
+    const totalEnrollment = roomCourses.reduce((sum, course) => {
+        return sum + (course.current_enrollment || 0);
+    }, 0);
+    
+    // Build popup content
+    let popupContent = `
+        <div class="popup-room-header">Room ${room}</div>
+    `;
+    
+    if (roomCapacity > 0) {
+        popupContent += `
+            <div class="popup-room-capacity">Capacity: ${roomCapacity} seats</div>
+        `;
+    }
+    
+    if (isInUse) {
+        popupContent += `<div class="popup-courses-list">`;
+        roomCourses.forEach(course => {
+            const startTime = formatTime(course.start_minutes);
+            const endTime = formatTime(course.end_minutes);
+            const currentEnroll = course.current_enrollment || 0;
+            const maxEnroll = course.max_enrollment || 0;
+            
+            popupContent += `
+                <div class="popup-course-item">
+                    <div class="popup-course-code">${course.course} - ${course.type}</div>
+                    <div class="popup-course-title">${course.title}</div>
+                    <div class="popup-course-time">${startTime} - ${endTime}</div>
+                    ${currentEnroll > 0 || maxEnroll > 0 ? `
+                        <div class="popup-course-enrollment">
+                            Enrollment: ${currentEnroll}${maxEnroll > 0 ? ` / ${maxEnroll}` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+        popupContent += `</div>`;
+        
+        if (totalEnrollment > 0) {
+            popupContent += `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0; font-size: 0.85em; color: #34495e; font-weight: 600;">
+                    Total Enrollment: ${totalEnrollment}
+                </div>
+            `;
+        }
+    } else {
+        popupContent += `
+            <div class="popup-no-courses">Available</div>
+        `;
+    }
     
     return `
-        <div class="course-card">
-            <div class="course-header">
-                <span class="course-code">${course.course}</span>
-                <span class="course-type">${course.type}</span>
+        <div class="room-box ${isInUse ? 'in-use' : 'available'}" 
+             data-building="${building}"
+             data-room="${room}">
+            <div class="room-number">${room}</div>
+            <div class="room-popup">
+                ${popupContent}
             </div>
-            <div class="course-title">${course.title}</div>
-            <div class="course-details">
-                <span>Section: ${course.section}</span>
-                <span>Room: ${course.room}</span>
-            </div>
-            <div class="course-time">${startTime} - ${endTime}</div>
         </div>
     `;
 }
@@ -233,6 +391,7 @@ function getDayName(dayCode) {
     };
     return dayMap[dayCode] || dayCode;
 }
+
 
 // Initialize app when DOM is ready
 if (document.readyState === 'loading') {

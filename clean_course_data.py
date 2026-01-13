@@ -174,6 +174,8 @@ def clean_course_data(input_file: str, output_file: str) -> None:
             days = (normalized_row.get('Days') or '').strip().strip('"')
             bldg = (normalized_row.get('Bldg') or '').strip().strip('"')
             room = (normalized_row.get('Room') or '').strip().strip('"')
+            max_enrollment = (normalized_row.get('Max Enrollment') or '').strip().strip('"')
+            current_enrollment = (normalized_row.get('Current Enrollment') or '').strip().strip('"')
             
             # Filter out rows with TBA times
             # TBA (To Be Announced) means no specific time, so we can't visualize it
@@ -212,6 +214,18 @@ def clean_course_data(input_file: str, output_file: str) -> None:
             course_code = build_course_code(subj, course_num)
             course_type = normalize_course_type(lec_lab)
             
+            # Parse enrollment data
+            # Convert to integers, defaulting to 0 if invalid
+            try:
+                max_enroll = int(max_enrollment) if max_enrollment else 0
+            except (ValueError, TypeError):
+                max_enroll = 0
+            
+            try:
+                current_enroll = int(current_enrollment) if current_enrollment else 0
+            except (ValueError, TypeError):
+                current_enroll = 0
+            
             # Create one record per day
             # This "explosion" makes time-based filtering straightforward:
             # we can simply filter by day and time range without complex logic
@@ -225,16 +239,75 @@ def clean_course_data(input_file: str, output_file: str) -> None:
                     "room": room,
                     "day": day,
                     "start_minutes": start_minutes,
-                    "end_minutes": end_minutes
+                    "end_minutes": end_minutes,
+                    "max_enrollment": max_enroll,
+                    "current_enrollment": current_enroll
                 }
                 cleaned_records.append(record)
     
-    # Write cleaned data to JSON
-    # Using indent=2 for readability during development/debugging
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(cleaned_records, f, indent=2, ensure_ascii=False)
+    # Calculate building metadata: total distinct rooms and total seats per building
+    # This helps the frontend show utilization (e.g., "5 of 20 rooms in use", "150 of 500 seats")
+    building_metadata = {}
+    room_capacities = {}  # Track max capacity per room (building + room combination)
     
+    for record in cleaned_records:
+        building = record["building"]
+        room = record["room"]
+        room_key = f"{building}:{room}"
+        max_enroll = record["max_enrollment"]
+        
+        # Track distinct rooms per building
+        if building not in building_metadata:
+            building_metadata[building] = {"rooms": set(), "room_capacities": {}}
+        
+        building_metadata[building]["rooms"].add(room)
+        
+        # Track room capacity (use maximum enrollment seen for that room as capacity estimate)
+        # If multiple courses use the same room, the room capacity is at least as large
+        # as the largest class that uses it
+        if room_key not in room_capacities:
+            room_capacities[room_key] = max_enroll
+        else:
+            room_capacities[room_key] = max(room_capacities[room_key], max_enroll)
+    
+    # Build final metadata structure
+    building_metadata_final = {}
+    for building, data in building_metadata.items():
+        room_count = len(data["rooms"])
+        total_seats = 0
+        
+        # Sum up capacities for all rooms in this building
+        for room in data["rooms"]:
+            room_key = f"{building}:{room}"
+            room_capacity = room_capacities.get(room_key, 0)
+            total_seats += room_capacity
+        
+        building_metadata_final[building] = {
+            "total_rooms": room_count,
+            "total_seats": total_seats
+        }
+    
+    # Also create room-level metadata for easy lookup
+    room_metadata = {}
+    for room_key, capacity in room_capacities.items():
+        room_metadata[room_key] = {"capacity": capacity}
+    
+    # Write cleaned data to JSON with building and room metadata
+    # Structure: { "courses": [...], "buildingMetadata": {...}, "roomMetadata": {...} }
+    # This separation makes it easy for the frontend to access both
+    output_data = {
+        "courses": cleaned_records,
+        "buildingMetadata": building_metadata_final,
+        "roomMetadata": room_metadata
+    }
+    
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(output_data, f, indent=2, ensure_ascii=False)
+    
+    total_seats_all_buildings = sum(b["total_seats"] for b in building_metadata_final.values())
     print(f"Processed {len(cleaned_records)} course meeting records")
+    print(f"Found {len(building_metadata_final)} buildings with room data")
+    print(f"Total seats across all buildings: {total_seats_all_buildings}")
     print(f"Output written to {output_file}")
 
 
