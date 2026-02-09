@@ -16,12 +16,13 @@ const BASE_ICON_SIZE = 10; // Base size for classroom icons
 
 // Building coordinates mapping
 const buildingCoordinates = {
-    'LAFAYE': {
+    'LAFAYE': {  // U/D, L/R
+                // Further left is 
         corners: [
-            [44.47821957097365, -73.19871759894683],  // NW
-            [44.478246218542466, -73.1982782247623],    // NE
-            [44.47769288711595, -73.19818595618355],   // SE
-            [44.47765369913891, -73.19862972410992]   // SW
+            [44.47828, -73.19863],  // NW
+            [44.47831, -73.19829],    // NE
+            [44.4776, -73.19818],   // SE
+            [44.47757, -73.19853]   // SW
         ],
         // Calculate center point from corners
         get center() {
@@ -323,7 +324,7 @@ function updateMarkerSizes() {
  */
 function calculateClassroomPosition(bounds, corners, index, totalRooms, rotation) {
     // Calculate grid dimensions (aim for roughly square grid)
-    const cols = 4;
+    const cols = 3;
     const rows = Math.ceil(totalRooms / cols);
 
     const row = Math.floor(index / cols);
@@ -411,7 +412,7 @@ function renderVisualization() {
 
         // Draw building outline
         const polygon = L.polygon(buildingData.corners, {
-            color: '#3498db',
+            color: 'transparent', // #3498db
             fillColor: '#ecf0f1',
             fillOpacity: 0.3,
             weight: 2
