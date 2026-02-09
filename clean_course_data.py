@@ -175,6 +175,21 @@ def clean_course_data(input_file: str, output_file: str) -> None:
             bldg = (normalized_row.get('Bldg') or '').strip().strip('"')
             room = (normalized_row.get('Room') or '').strip().strip('"')
             
+            # Extract enrollment information
+            max_enrollment_str = (normalized_row.get('Max Enrollment') or '').strip().strip('"')
+            current_enrollment_str = (normalized_row.get('Current Enrollment') or '').strip().strip('"')
+            
+            # Convert enrollment strings to integers, defaulting to None if empty or invalid
+            try:
+                max_enrollment = int(max_enrollment_str) if max_enrollment_str else None
+            except (ValueError, TypeError):
+                max_enrollment = None
+            
+            try:
+                current_enrollment = int(current_enrollment_str) if current_enrollment_str else None
+            except (ValueError, TypeError):
+                current_enrollment = None
+            
             # Filter out rows with TBA times
             # TBA (To Be Announced) means no specific time, so we can't visualize it
             if start_time.upper() == "TBA" or end_time.upper() == "TBA" or not start_time or not end_time:
@@ -225,7 +240,9 @@ def clean_course_data(input_file: str, output_file: str) -> None:
                     "room": room,
                     "day": day,
                     "start_minutes": start_minutes,
-                    "end_minutes": end_minutes
+                    "end_minutes": end_minutes,
+                    "max_enrollment": max_enrollment,
+                    "current_enrollment": current_enrollment
                 }
                 cleaned_records.append(record)
     

@@ -153,37 +153,143 @@ function groupByBuilding(courses) {
 }
 
 /**
+ * Get all unique classrooms grouped by building from the full course data
+ * @returns {Object} Object with building names as keys and arrays of unique room numbers as values
+ */
+function getAllClassroomsByBuilding() {
+    const classrooms = {};
+    courseData.forEach(course => {
+        const building = course.building;
+        const room = course.room;
+        if (building && room) {
+            if (!classrooms[building]) {
+                classrooms[building] = new Set();
+            }
+            classrooms[building].add(room);
+        }
+    });
+    
+    // Convert Sets to sorted arrays
+    const result = {};
+    Object.keys(classrooms).forEach(building => {
+        result[building] = Array.from(classrooms[building]).sort((a, b) => {
+            // Sort naturally (e.g., "101" < "102" < "201")
+            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        });
+    });
+    return result;
+}
+
+/**
+ * Get set of classrooms that are currently in use
+ * @param {Array} activeCourses - Array of courses active at selected time
+ * @returns {Object} Object with building names as keys and Sets of room numbers as values
+ */
+function getInUseClassrooms(activeCourses) {
+    const inUse = {};
+    activeCourses.forEach(course => {
+        const building = course.building;
+        const room = course.room;
+        if (building && room) {
+            if (!inUse[building]) {
+                inUse[building] = new Set();
+            }
+            inUse[building].add(room);
+        }
+    });
+    return inUse;
+}
+
+/**
+ * Get courses for a specific building and room at the selected time
+ * @param {Array} activeCourses - Array of courses active at selected time
+ * @param {string} building - Building name
+ * @param {string} room - Room number
+ * @returns {Array} Array of courses in that room
+ */
+function getCoursesForRoom(activeCourses, building, room) {
+    return activeCourses.filter(course => 
+        course.building === building && course.room === room
+    );
+}
+
+/**
  * Render the main visualization
  */
 function renderVisualization() {
     const container = document.getElementById('visualization');
     
-    // Filter courses based on current selections
+    // Filter courses based on current selections (these are the active courses)
     const filteredCourses = filterCourses();
     
-    if (filteredCourses.length === 0) {
+    // Get all classrooms by building
+    const allClassrooms = getAllClassroomsByBuilding();
+    const buildingNames = Object.keys(allClassrooms).sort();
+    
+    if (buildingNames.length === 0) {
         container.innerHTML = `
             <p class="no-results">
-                No classes found for ${getDayName(selectedDay)} at ${formatTime(selectedTime)}
+                No buildings found in course data
             </p>
         `;
         return;
     }
     
-    // Group by building
-    const buildings = groupByBuilding(filteredCourses);
-    const buildingNames = Object.keys(buildings).sort();
+    // Get which classrooms are currently in use
+    const inUseClassrooms = getInUseClassrooms(filteredCourses);
     
     // Build HTML
     let html = `<div class="buildings-grid">`;
     
     buildingNames.forEach(building => {
-        const courses = buildings[building];
+        const rooms = allClassrooms[building];
+        const inUse = inUseClassrooms[building] || new Set();
+        
         html += `
             <div class="building-container">
                 <h3 class="building-name">${building}</h3>
-                <div class="courses-list">
-                    ${courses.map(course => renderCourseCard(course)).join('')}
+                <div class="classrooms-grid">
+                    ${rooms.map(room => {
+                        const isInUse = inUse.has(room);
+                        const statusClass = isInUse ? 'classroom-in-use' : 'classroom-available';
+                        const coursesInRoom = getCoursesForRoom(filteredCourses, building, room);
+                        
+                        // Build tooltip content
+                        let tooltipContent = '';
+                        if (coursesInRoom.length > 0) {
+                            tooltipContent = coursesInRoom.map(course => {
+                                const startTime = formatTime(course.start_minutes);
+                                const endTime = formatTime(course.end_minutes);
+                                // Escape HTML but preserve <br> tags
+                                const courseCode = (course.course || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                const courseTitle = (course.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}`;
+                            }).join('<br><br>');
+                        } else {
+                            tooltipContent = 'Available';
+                        }
+                        
+                        // Build enrollment/capacity display
+                        let enrollmentDisplay = '';
+                        if (coursesInRoom.length > 0) {
+                            // Get enrollment info from the first course (or sum if multiple)
+                            const firstCourse = coursesInRoom[0];
+                            if (firstCourse.current_enrollment !== null && firstCourse.current_enrollment !== undefined &&
+                                firstCourse.max_enrollment !== null && firstCourse.max_enrollment !== undefined) {
+                                enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.max_enrollment}</div>`;
+                            }
+                        }
+                        
+                        return `<div class="classroom-cell ${statusClass}" 
+                                    data-building="${building}" 
+                                    data-room="${room}"
+                                    data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
+                                    <div class="classroom-content">
+                                        <div class="classroom-number">${room}</div>
+                                        ${enrollmentDisplay}
+                                    </div>
+                                </div>`;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -191,6 +297,65 @@ function renderVisualization() {
     
     html += `</div>`;
     container.innerHTML = html;
+    
+    // Add hover event listeners for tooltips
+    setupClassroomTooltips();
+}
+
+/**
+ * Set up tooltip functionality for classroom cells
+ */
+function setupClassroomTooltips() {
+    // Create a single reusable tooltip element
+    let tooltip = document.querySelector('.classroom-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.className = 'classroom-tooltip';
+        document.body.appendChild(tooltip);
+    }
+    
+    const classroomCells = document.querySelectorAll('.classroom-cell');
+    
+    classroomCells.forEach(cell => {
+        cell.addEventListener('mouseenter', (e) => {
+            const rect = cell.getBoundingClientRect();
+            tooltip.innerHTML = cell.dataset.tooltip;
+            tooltip.style.display = 'block';
+            
+            // Position tooltip above the cell, centered
+            const tooltipLeft = rect.left + rect.width / 2;
+            const tooltipTop = rect.top - 10;
+            tooltip.style.left = `${tooltipLeft}px`;
+            tooltip.style.top = `${tooltipTop}px`;
+            
+            // Adjust position to keep tooltip on screen
+            requestAnimationFrame(() => {
+                const tooltipRect = tooltip.getBoundingClientRect();
+                let adjustedLeft = tooltipLeft;
+                let adjustedTop = tooltipTop;
+                
+                if (tooltipRect.left < 10) {
+                    adjustedLeft = rect.left + 10;
+                } else if (tooltipRect.right > window.innerWidth - 10) {
+                    adjustedLeft = window.innerWidth - tooltipRect.width - 10;
+                }
+                
+                if (tooltipRect.top < 10) {
+                    adjustedTop = rect.bottom + 10;
+                    tooltip.classList.add('tooltip-below');
+                } else {
+                    tooltip.classList.remove('tooltip-below');
+                }
+                
+                tooltip.style.left = `${adjustedLeft}px`;
+                tooltip.style.top = `${adjustedTop}px`;
+            });
+        });
+        
+        cell.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+    });
 }
 
 /**
@@ -202,17 +367,70 @@ function renderCourseCard(course) {
     const startTime = formatTime(course.start_minutes);
     const endTime = formatTime(course.end_minutes);
     
+    // Format enrollment badge for header
+    let enrollmentBadge = '';
+    if (course.current_enrollment !== null && course.current_enrollment !== undefined &&
+        course.max_enrollment !== null && course.max_enrollment !== undefined) {
+        const used = course.current_enrollment;
+        const total = course.max_enrollment;
+        enrollmentBadge = `<span class="enrollment-badge">${used}/${total}</span>`;
+    } else if (course.current_enrollment !== null && course.current_enrollment !== undefined) {
+        enrollmentBadge = `<span class="enrollment-badge">${course.current_enrollment} enrolled</span>`;
+    } else if (course.max_enrollment !== null && course.max_enrollment !== undefined) {
+        enrollmentBadge = `<span class="enrollment-badge">Capacity: ${course.max_enrollment}</span>`;
+    }
+    
+    // Format seat information
+    let seatInfo = '';
+    if (course.current_enrollment !== null && course.current_enrollment !== undefined &&
+        course.max_enrollment !== null && course.max_enrollment !== undefined) {
+        const used = course.current_enrollment;
+        const total = course.max_enrollment;
+        const available = total - used;
+        const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
+        
+        // Determine color class based on availability
+        let seatClass = 'seats-normal';
+        if (available === 0) {
+            seatClass = 'seats-full';
+        } else if (percentage >= 90) {
+            seatClass = 'seats-warning';
+        }
+        
+        seatInfo = `
+            <div class="course-seats ${seatClass}">
+                Seats: ${used} / ${total} (${available} available)
+            </div>
+        `;
+    } else if (course.current_enrollment !== null && course.current_enrollment !== undefined) {
+        seatInfo = `
+            <div class="course-seats">
+                Enrolled: ${course.current_enrollment}
+            </div>
+        `;
+    } else if (course.max_enrollment !== null && course.max_enrollment !== undefined) {
+        seatInfo = `
+            <div class="course-seats">
+                Capacity: ${course.max_enrollment}
+            </div>
+        `;
+    }
+    
     return `
         <div class="course-card">
             <div class="course-header">
                 <span class="course-code">${course.course}</span>
-                <span class="course-type">${course.type}</span>
+                <div class="course-header-right">
+                    ${enrollmentBadge}
+                    <span class="course-type">${course.type}</span>
+                </div>
             </div>
             <div class="course-title">${course.title}</div>
             <div class="course-details">
                 <span>Section: ${course.section}</span>
                 <span>Room: ${course.room}</span>
             </div>
+            ${seatInfo}
             <div class="course-time">${startTime} - ${endTime}</div>
         </div>
     `;

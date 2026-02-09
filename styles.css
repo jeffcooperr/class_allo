@@ -126,6 +126,7 @@ header h1 {
     background: #ddd;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 #time-slider::-webkit-slider-thumb {
@@ -254,5 +255,167 @@ header h1 {
     color: #3498db;
     font-weight: 600;
     margin-top: 8px;
+}
+
+/* Classroom grid and cells */
+.classrooms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.classroom-cell {
+    aspect-ratio: 1;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    background: white;
+}
+
+.classroom-cell:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.classroom-available {
+    border-color: #27ae60;
+    background: #d5f4e6;
+}
+
+.classroom-available:hover {
+    border-color: #229954;
+    box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.classroom-in-use {
+    border-color: #e74c3c;
+    background: #fadbd8;
+}
+
+.classroom-in-use:hover {
+    border-color: #c0392b;
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.classroom-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+}
+
+.classroom-number {
+    font-weight: 700;
+    font-size: 0.9em;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.classroom-enrollment {
+    font-size: 0.7em;
+    color: #7f8c8d;
+    margin-top: 2px;
+    font-weight: 500;
+}
+
+/* Map view styles */
+.map-container {
+    width: 100%;
+    height: 600px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.classroom-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.classroom-marker .classroom-cell {
+    width: 100%;
+    height: 100%;
+}
+
+/* Tooltip styles */
+.classroom-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.classroom-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.classroom-tooltip.tooltip-below::after {
+    bottom: auto;
+    top: -6px;
+    border-top-color: transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.9);
+}
+
+/* Course card additional styles */
+.course-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.enrollment-badge {
+    background: #3498db;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.course-seats {
+    font-size: 0.85em;
+    color: #7f8c8d;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.course-seats.seats-full {
+    background: #fee;
+    color: #c0392b;
+    font-weight: 600;
+}
+
+.course-seats.seats-warning {
+    background: #fff3cd;
+    color: #856404;
+    font-weight: 600;
+}
+
+.course-seats.seats-normal {
+    background: #d4edda;
+    color: #155724;
 }
 
