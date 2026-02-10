@@ -24,6 +24,12 @@ const buildingCoordinates = {
             [44.4776, -73.19818],   // SE
             [44.47757, -73.19853]   // SW
         ],
+        // Building-specific configuration
+        config: {
+            rotation: -6,        // Rotation angle in degrees
+            gridCols: 3,         // Number of columns for classroom grid
+            padding: 0.3         // Padding percentage (30% from edges)
+        },
         // Calculate center point from corners
         get center() {
             const lats = this.corners.map(c => c[0]);
@@ -33,8 +39,143 @@ const buildingCoordinates = {
                 lng: (Math.min(...lngs) + Math.max(...lngs)) / 2
             };
         }
+    },
+
+    'AIKEN': {
+        corners: [
+            [44.47597, -73.195399],   // NW
+            [44.47597, -73.1951],    // NE
+            [44.4758623, -73.1951],  // SE
+            [44.4758597, -73.195399],  // SW
+        ],
+        
+        config: {
+            rotation: 0,
+            gridCols: 3,
+            padding: 0.3
+        },
+    },
+
+    'JEFFRD': {
+        corners: [[44.4755743, -73.194024],  // NW
+        [44.4754824, -73.1937439],    // NE
+        [44.4751534, -73.1939514],   // SE
+        [44.4752473, -73.1942352]   // SW
+        ],
+        config: {
+            rotation: 25,
+            gridCols: 3,
+            padding: 0.3
+        },
+    },
+
+    'BLLNGS': {
+        corners: [
+            [44.4802999, -73.1989],  // NW
+            [44.4803126, -73.1988639],    // NE
+            [44.4801614, -73.1988329],   // SE
+            [44.4801475, -73.1989]   // SW
+        ],
+        config: {
+            rotation: 0,
+            gridCols: 1,
+            padding: 0.3
+        }
+    },
+
+    'L/L-A': {
+        corners: [
+            [44.473485, -73.194313],  // NW
+            [44.473485, -73.19416],    // NE
+            [44.4733591, -73.19416],   // SE
+            [44.4733608, -73.194313]   // SW
+        ],
+        config: {
+            rotation: 0,
+            gridCols: 2,
+            padding: 0.3
+        }
+    },
+
+    'PLB': {
+        corners: [
+            [44.4771964, -73.19479],  // NW
+            [44.4771972, -73.1946677],    // NE
+            [44.4767183, -73.1945845],   // SE
+            [44.4767026, -73.1947]   // SW
+        ],
+        config: {
+            rotation: -6,
+            gridCols: 1,
+            padding: 0.3
+        }
+    },
+
+    'ML SCI': {
+        corners: [
+            [44.4770436, -73.1956828],  // NW
+            [44.4770603, -73.1954961],    // NE
+            [44.4764931, -73.19549992],   // SE
+            [44.4764774, -73.1955803]   // SW
+        ],
+        config: {
+            rotation: -6,
+            gridCols: 2,
+            padding: 0.3
+        }
+    },
+
+    'WATERM': {
+        corners: [
+            [44.4785185, -73.201282],  // NW
+            [44.4785032, -73.2009602],    // NE
+            [44.4780197, -73.2009848],   // SE
+            [44.478033, -73.2013048]   // SW
+        ],
+        config: {
+            rotation: 3,
+            gridCols: 3,
+            padding: 0.3
+        }
+    },
+
+    'MORRIL': {
+        corners: [
+            [44.476715, -73.1984686],  // NW
+            [44.476715, -73.1983426],    // NE
+            [44.4765061, -73.1983012],   // SE
+            [44.4764966, -73.1984284]   // SW
+        ],
+        config: {
+            rotation: -6,
+            gridCols: 1,
+            padding: 0.3
+        }
+    },
+
+    'L/L-B': {
+        corners: [
+            [44.47393, -73.1944047],  // NW
+            [44.47393, -73.194214],    // NE
+            [44.4738672, -73.1941867],   // SE
+            [44.4738521, -73.1943831]   // SW
+        ],
+        config: {
+            rotation: 0,
+            gridCols: 2,
+            padding: 0.3
+        }
     }
     // Add more buildings here as needed
+    // Example:
+    // 'BUILDING2': {
+    //     corners: [...],
+    //     config: {
+    //         rotation: 15,
+    //         gridCols: 4,
+    //         padding: 0.25
+    //     }
+    // }
 };
 
 /**
@@ -271,10 +412,11 @@ function getBuildingBounds(corners) {
 
 /**
  * Calculate building rotation angle in degrees
- * Uses the angle from NW to NE corner to determine building orientation
+ * @param {Object} buildingData - Building data object with config
+ * @returns {number} Rotation angle in degrees
  */
-function getBuildingRotation(corners) {
-    return -6;
+function getBuildingRotation(buildingData) {
+    return buildingData.config?.rotation ?? 0;
 }
 
 
@@ -321,10 +463,17 @@ function updateMarkerSizes() {
 
 /**
  * Calculate position for a classroom box within building bounds
+ * @param {Object} bounds - Building bounds
+ * @param {Array} corners - Building corner coordinates
+ * @param {number} index - Classroom index in the list
+ * @param {number} totalRooms - Total number of rooms in building
+ * @param {Object} buildingConfig - Building configuration (rotation, gridCols, padding)
+ * @returns {Object} Position object with lat and lng
  */
-function calculateClassroomPosition(bounds, corners, index, totalRooms, rotation) {
-    // Calculate grid dimensions (aim for roughly square grid)
-    const cols = 3;
+function calculateClassroomPosition(bounds, corners, index, totalRooms, buildingConfig) {
+    // Get grid configuration from building config, with defaults
+    const cols = buildingConfig?.gridCols ?? 3;
+    const padding = buildingConfig?.padding ?? 0.3;
     const rows = Math.ceil(totalRooms / cols);
 
     const row = Math.floor(index / cols);
@@ -347,7 +496,6 @@ function calculateClassroomPosition(bounds, corners, index, totalRooms, rotation
     );
 
     // Leave some padding from edges
-    const padding = 0.3; // 30% padding
     const usableWidth = width * (1 - padding);
     const usableHeight = height * (1 - padding);
 
@@ -412,8 +560,8 @@ function renderVisualization() {
 
         // Draw building outline
         const polygon = L.polygon(buildingData.corners, {
-            color: 'transparent', // #3498db
-            fillColor: '#ecf0f1',
+            color: '#3498db',
+            fillColor: 'transparent', // #ecf0f1
             fillOpacity: 0.3,
             weight: 2
         }).addTo(map);
@@ -421,7 +569,8 @@ function renderVisualization() {
 
         // Get building bounds for positioning classrooms
         const bounds = getBuildingBounds(buildingData.corners);
-        const buildingRotation = getBuildingRotation(buildingData.corners);
+        const buildingRotation = getBuildingRotation(buildingData);
+        const buildingConfig = buildingData.config || {};
         const rooms = allClassrooms[buildingName];
         const inUse = inUseClassrooms[buildingName] || new Set();
 
@@ -454,8 +603,8 @@ function renderVisualization() {
                 }
             }
 
-            // Calculate position within building bounds
-            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingRotation);
+            // Calculate position within building bounds using building config
+            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
 
             // Check if we're at max zoom to show room numbers
             const currentZoom = map.getZoom();
