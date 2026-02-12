@@ -201,6 +201,10 @@ def clean_course_data(input_file: str, output_file: str) -> None:
             if bldg.upper() == "ONLINE" or not bldg or bldg.strip() == "":
                 continue
             
+            # Filter out MRC and MRC-CO buildings
+            if bldg.upper() == "MRC" or bldg.upper() == "MRC-CO":
+                continue
+            
             # Filter out courses with "SEE NOTES" as room
             # These courses don't have a specific room assigned yet
             if room.upper() == "SEE NOTES":
