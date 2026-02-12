@@ -695,7 +695,7 @@ const buildingCoordinates = {
 async function init() {
     try {
         // Load course data
-        const response = await fetch('2025_fall_cleaned.json');
+        const response = await fetch('data/2025_fall_cleaned.json');
         if (!response.ok) {
             throw new Error(`Failed to load data: ${response.statusText}`);
         }
@@ -1106,11 +1106,14 @@ function renderVisualization() {
 
             // Build enrollment display
             let enrollmentDisplay = '';
+            let isOverCapacity = false;
             if (coursesInRoom.length > 0) {
                 const firstCourse = coursesInRoom[0];
                 if (firstCourse.current_enrollment !== null && firstCourse.current_enrollment !== undefined &&
                     firstCourse.max_enrollment !== null && firstCourse.max_enrollment !== undefined) {
                     enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.max_enrollment}</div>`;
+                    // Check if class is over capacity
+                    isOverCapacity = firstCourse.current_enrollment > firstCourse.max_enrollment;
                 }
             }
 
@@ -1123,7 +1126,11 @@ function renderVisualization() {
             const showRoomNumber = currentZoom === maxZoom;
             
             // Create HTML for classroom box with rotation
-            const statusClass = isInUse ? 'classroom-in-use' : 'classroom-available';
+            // Use yellow for over-capacity classes, red for in-use but not over-capacity, green for available
+            let statusClass = 'classroom-available';
+            if (isInUse) {
+                statusClass = isOverCapacity ? 'classroom-over-capacity' : 'classroom-in-use';
+            }
             const classroomHtml = `
                 <div class="classroom-cell ${statusClass}"
                      data-building="${buildingName}"

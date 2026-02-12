@@ -16,7 +16,7 @@ let selectedTime = 480; // 8:00 AM in minutes (default)
 async function init() {
     try {
         // Load course data
-        const response = await fetch('2025_fall_cleaned.json');
+        const response = await fetch('data/2025_fall_cleaned.json');
         if (!response.ok) {
             throw new Error(`Failed to load data: ${response.statusText}`);
         }

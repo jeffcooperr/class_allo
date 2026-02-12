@@ -302,6 +302,16 @@ header h1 {
     box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
 }
 
+.classroom-over-capacity {
+    border-color: #f39c12;
+    background: #fef5e7;
+}
+
+.classroom-over-capacity:hover {
+    border-color: #d68910;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.3);
+}
+
 .classroom-content {
     display: flex;
     flex-direction: column;

@@ -260,8 +260,8 @@ def clean_course_data(input_file: str, output_file: str) -> None:
 
 
 if __name__ == "__main__":
-    input_file = "2025 Fall.csv"
-    output_file = "2025_fall_cleaned.json"
+    input_file = "../data/2025 Fall.csv"
+    output_file = "../data/2025_fall_cleaned.json"
     
     print(f"Cleaning course data from {input_file}...")
     clean_course_data(input_file, output_file)
