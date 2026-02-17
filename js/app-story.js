@@ -10,434 +10,32 @@ let courseData = [];
 let selectedDay = 'M'; // Fixed to Monday for consistency
 let selectedTime = 480; // Start at 8:00 AM
 let map = null;
+let interactiveMap = null; // Interactive map at bottom of section 5
+let capacityMap = null; // Interactive map for capacity section
 let classroomMarkers = [];
 let buildingPolygons = [];
+let interactiveClassroomMarkers = []; // Markers for interactive map
+let interactiveBuildingPolygons = []; // Polygons for interactive map
+let capacityClassroomMarkers = []; // Markers for capacity map
+let capacityBuildingPolygons = []; // Polygons for capacity map
+let interactiveSelectedDay = 'W'; // Day for interactive map (Wednesday)
+let interactiveSelectedTime = 720; // Time for interactive map (12:00 PM)
+let capacitySelectedDay = 'W'; // Day for capacity map
+let capacitySelectedTime = 720; // Time for capacity map
 const BASE_ICON_SIZE = 10;
+let minTime = 0; // Minimum class start time (will be calculated from data)
+let maxTime = 1440; // Maximum class end time (will be calculated from data)
 
 // Time cycling configuration
-const TIME_CYCLE_INTERVAL = 1000; // Change time every 2 seconds
+const TIME_CYCLE_INTERVAL = 1000; // Change time every 1 second
 const TIME_STEP = 30; // Step by 30 minutes each cycle
 const MIN_TIME = 480; // 8:00 AM
 const MAX_TIME = 1020; // 5:00 PM (17:00)
+let timeCycleInterval = null;
+let isInVizSection = false;
 
-// Import building coordinates from the main map file
-// (In a real scenario, you'd want to extract this to a shared module)
-const buildingCoordinates = {
-    'LAFAYE': {
-        corners: [
-            [44.47828, -73.19863],
-            [44.47831, -73.19829],
-            [44.4776, -73.19818],
-            [44.47757, -73.19853]
-        ],
-        config: { rotation: -6, gridCols: 3, padding: 0.3 },
-        get center() {
-            const lats = this.corners.map(c => c[0]);
-            const lngs = this.corners.map(c => c[1]);
-            return {
-                lat: (Math.min(...lats) + Math.max(...lats)) / 2,
-                lng: (Math.min(...lngs) + Math.max(...lngs)) / 2
-            };
-        }
-    },
-    'AIKEN': {
-        corners: [
-            [44.47597, -73.195399],
-            [44.47597, -73.1951],
-            [44.4758623, -73.1951],
-            [44.4758597, -73.195399],
-        ],
-        config: { rotation: 0, gridCols: 3, padding: 0.3 },
-    },
-    'JEFFRD': {
-        corners: [
-            [44.4755743, -73.194024],
-            [44.4754824, -73.1937439],
-            [44.4751534, -73.1939514],
-            [44.4752473, -73.1942352]
-        ],
-        config: { rotation: 25, gridCols: 3, padding: 0.3 },
-    },
-    'BLLNGS': {
-        corners: [
-            [44.4802999, -73.1989],
-            [44.4803126, -73.1988639],
-            [44.4801614, -73.1988329],
-            [44.4801475, -73.1989]
-        ],
-        config: { rotation: 0, gridCols: 1, padding: 0.3 }
-    },
-    'L/L-A': {
-        corners: [
-            [44.473485, -73.194313],
-            [44.473485, -73.19416],
-            [44.4733591, -73.19416],
-            [44.4733608, -73.194313]
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'PLB': {
-        corners: [
-            [44.4771964, -73.19479],
-            [44.4771972, -73.1946677],
-            [44.4767183, -73.1945845],
-            [44.4767026, -73.1947]
-        ],
-        config: { rotation: -6, gridCols: 1, padding: 0.3 }
-    },
-    'ML SCI': {
-        corners: [
-            [44.4770436, -73.1956828],
-            [44.4770603, -73.1954961],
-            [44.4764931, -73.19549992],
-            [44.4764774, -73.1955803]
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'WATERM': {
-        corners: [
-            [44.4785185, -73.201282],
-            [44.4785032, -73.2009602],
-            [44.4780197, -73.2009848],
-            [44.478033, -73.2013048]
-        ],
-        config: { rotation: 3, gridCols: 3, padding: 0.3 }
-    },
-    'MORRIL': {
-        corners: [
-            [44.476715, -73.1984686],
-            [44.476715, -73.1983426],
-            [44.4765061, -73.1983012],
-            [44.4764966, -73.1984284]
-        ],
-        config: { rotation: -6, gridCols: 1, padding: 0.3 }
-    },
-    'L/L-B': {
-        corners: [
-            [44.47393, -73.1944047],
-            [44.47393, -73.194214],
-            [44.4738672, -73.1941867],
-            [44.4738521, -73.1943831]
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'GIVN E': {
-        corners: [
-            [44.4779676, -73.1938167],
-            [44.4779861, -73.1935513],
-            [44.4778616, -73.1935308],
-            [44.4778449, -73.1937681]
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'GIVN C': {
-        corners: [
-            [44.4777519, -73.1937492],
-            [44.4777697, -73.193522],
-            [44.477676, -73.1934958],
-            [44.4776574, -73.1937276]
-        ],
-        config: { rotation: -6, gridCols: 1, padding: 0.3 }
-    },
-    'WILLMS': {
-        corners: [
-            [44.4788211, -73.1990503],
-            [44.4788444, -73.1988615],
-            [44.4783140, -73.1987737],
-            [44.4782955, -73.1989622],
-            [44.4788146, -73.1990503],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'FLEMIN': {
-        corners: [
-            [44.4800047, -73.1972216],
-            [44.4800170, -73.1970884],
-            [44.4799433, -73.1970771],
-            [44.4799311, -73.1972073],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'COHEN': {
-        corners: [
-            [44.4804172, -73.2031],
-            [44.4804255, -73.20259],
-            [44.4802, -73.2027484],
-            [44.4802, -73.2031],
-        ],
-        config: { rotation: 0, gridCols: 4, padding: 0.3 }
-    },
-    'HARRIS': {
-        corners: [
-            [44.4717667, -73.1938416],
-            [44.4716976, -73.1938631],
-            [44.4716910, -73.1937056],
-            [44.4718107, -73.1937859],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'PERKIN': {
-        corners: [
-            [44.4798036, -73.1980158],
-            [44.4797223, -73.1979950],
-            [44.4797629, -73.1975675],
-            [44.4798410, -73.1975823],
-        ],
-        config: { rotation: -6, gridCols: 1, padding: 0.3 }
-    },
-    'TERRIL': {
-        corners: [
-            [44.4761757, -73.1963110],
-            [44.4760946, -73.1962954],
-            [44.4761310, -73.1958260],
-            [44.4762119, -73.1958426],
-        ],
-        config: { rotation: -6, gridCols: 1, padding: 0.3 }
-    },
-    'ROWELL': {
-        corners: [
-            [44.4778705, -73.1948774],
-            [44.4775482, -73.1948243],
-            [44.4775887, -73.1942762],
-            [44.4779189, -73.1943433],
-        ],
-        config: { rotation: -6, gridCols: 4, padding: 0.3 }
-    },
-    'KALKIN': {
-        corners: [
-            [44.4794648, -73.1977390],
-            [44.4791553, -73.1976921],
-            [44.4791838, -73.1973536],
-            [44.4794920, -73.1974091],
-        ],
-        config: { rotation: -6, gridCols: 3, padding: 0.3 }
-    },
-    'VOTEY': {
-        corners: [
-            [44.4795796, -73.1983439],
-            [44.4790335, -73.1982504],
-            [44.4790619, -73.1979025],
-            [44.4796111, -73.1979980],
-        ],
-        config: { rotation: -6, gridCols: 6, padding: 0.3 }
-    },
-    'STAFFO': {
-        corners: [
-            [44.4765140, -73.1944828],
-            [44.4762392, -73.1944322],
-            [44.4762562, -73.1942481],
-            [44.4765299, -73.1943016],
-        ],
-        config: { rotation: -6, gridCols: 3, padding: 0.3 }
-    },
-    'OMANEX': {
-        corners: [
-            [44.4778601, -73.1989535],
-            [44.4777428, -73.1989287],
-            [44.4777782, -73.1986012],
-            [44.4778922, -73.1986234],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'OLDMIL': {
-        corners: [
-            [44.4780237, -73.1988],
-            [44.4779414, -73.1989850],
-            [44.4779535, -73.1988],
-            [44.4780329, -73.1988],
-        ],
-        config: { rotation: -6, gridCols: 3, padding: 0.3 }
-    },
-    'DISCOV': {
-        corners: [
-            [44.4787818, -73.1982659],
-            [44.4782228, -73.1981752],
-            [44.4782508, -73.1977740],
-            [44.4788184, -73.1978591],
-        ],
-        config: { rotation: -6, gridCols: 6, padding: 0.3 }
-    },
-    'INNOV': {
-        corners: [
-            [44.4785513, -73.1976819],
-            [44.4781970, -73.1976202],
-            [44.4782128, -73.1974045],
-            [44.4785691, -73.1974669],
-        ],
-        config: { rotation: -6, gridCols: 4, padding: 0.3 }
-    },
-    'IFSHIN': {
-        corners: [
-            [44.4795511, -73.1977515],
-            [44.4794863, -73.1977350],
-            [44.4795023, -73.1975381],
-            [44.4795682, -73.1975543],
-        ],
-        config: { rotation: -6, gridCols: 1, padding: 0.3 }
-    },
-    'L/L CM': {
-        corners: [
-            [44.4737660, -73.1948873],
-            [44.4736284, -73.1948555],
-            [44.4736432, -73.1947012],
-            [44.4737834, -73.1947314],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'L/L-D': {
-        corners: [
-            [44.4735371, -73.1952654],
-            [44.4734712, -73.1952510],
-            [44.4734781, -73.1951552],
-            [44.4735462, -73.1951673],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'MARSH': {
-        corners: [
-            [44.4728394, -73.1935773],
-            [44.4727829, -73.1935612],
-            [44.4727886, -73.1934781],
-            [44.4728470, -73.1934942],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    'RT THR': {
-        corners: [
-            [44.4774534, -73.1983893],
-            [44.4774684, -73.1981969],
-            [44.4773711, -73.1981774],
-            [44.4773558, -73.1983691],
-        ],
-        config: { rotation: -6, gridCols: 2, padding: 0.3 }
-    },
-    '70S WL': {
-        corners: [
-            [44.4787183, -73.2028294],
-            [44.4787071, -73.2028267],
-            [44.4787081, -73.2027507],
-            [44.4787193, -73.2027543],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'ALLEN': {
-        corners: [
-            [44.4761473, -73.2004926],
-            [44.4761024, -73.2004907],
-            [44.4761027, -73.2004153],
-            [44.4761481, -73.2004152],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'DELEHA': {
-        corners: [
-            [44.4828630, -73.1943482],
-            [44.4827176, -73.1943388],
-            [44.4827204, -73.1941675],
-            [44.4828630, -73.1941747],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'DEWEY': {
-        corners: [
-            [44.4811154, -73.2004701],
-            [44.4809860, -73.2005110],
-            [44.4809100, -73.2000543],
-            [44.4810407, -73.2000147],
-        ],
-        config: { rotation: 13, gridCols: 2, padding: 0.3 }
-    },
-    'HSRF': {
-        corners: [
-            [44.4770330, -73.1939628],
-            [44.4767412, -73.1939174],
-            [44.4767536, -73.1937446],
-            [44.4770452, -73.1937908],
-        ],
-        config: { rotation: 0, gridCols: 3, padding: 0.3 }
-    },
-    'MANN': {
-        corners: [
-            [44.4825224, -73.1937884],
-            [44.4824129, -73.1937062],
-            [44.4825802, -73.1933009],
-            [44.4826772, -73.1933970],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    '31 SPR': {
-        corners: [
-            [44.4798016, -73.2007702],
-            [44.4797593, -73.2007683],
-            [44.4797586, -73.2007232],
-            [44.4798012, -73.2007223],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'MUSIC': {
-        corners: [
-            [44.4697162, -73.1979479],
-            [44.4696408, -73.1979449],
-            [44.4696445, -73.1977524],
-            [44.4697163, -73.1977603],
-        ],
-        config: { rotation: 0, gridCols: 1, padding: 0.3 }
-    },
-    'SOUTHW': {
-        corners: [
-            [44.4696110, -73.1980688],
-            [44.4695153, -73.1980636],
-            [44.4695161, -73.1974651],
-            [44.4696143, -73.1974657],
-        ],
-        config: { rotation: 0, gridCols: 1, padding: 0.3 }
-    },
-    'PATGYM': {
-        corners: [
-            [44.4703837, -73.1950082],
-            [44.4701472, -73.1949591],
-            [44.4701859, -73.1944862],
-            [44.4704264, -73.1945326],
-        ],
-        config: { rotation: -6, gridCols: 3, padding: 0.3 }
-    },
-    'POMERO': {
-        corners: [
-            [44.4759640, -73.1993598],
-            [44.4759281, -73.1993554],
-            [44.4759312, -73.1993293],
-            [44.4759656, -73.1993300],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'UHTN': {
-        corners: [
-            [44.4729523, -73.1958147],
-            [44.4728399, -73.1958111],
-            [44.4728361, -73.1956019],
-            [44.4729471, -73.1956153],
-        ],
-        config: { rotation: 0, gridCols: 2, padding: 0.3 }
-    },
-    'UHTS23': {
-        corners: [
-            [44.4721624, -73.1956773],
-            [44.4720556, -73.1956809],
-            [44.4720579, -73.1955023],
-            [44.4721678, -73.1955064],
-        ],
-        config: { rotation: 0, gridCols: 1, padding: 0.3 }
-    },
-    'WHEELR': {
-        corners: [
-            [44.4768096, -73.2015600],
-            [44.4767365, -73.2015586],
-            [44.4767386, -73.2014617],
-            [44.4768139, -73.2014631],
-        ],
-        config: { rotation: 0, gridCols: 1, padding: 0.3 }
-    },
-};
+// Building coordinates are loaded from js/building-coordinates.js
+// (loaded via script tag in HTML before this file)
 
 /**
  * Initialize the application
@@ -452,23 +50,46 @@ async function init() {
         courseData = await response.json();
         console.log(`Loaded ${courseData.length} course meeting records`);
 
-        // Initialize map
+        // Initialize background map
         initMap();
+
+        // Calculate min and max times from course data
+        calculateTimeRange();
+
+        // Initialize interactive map
+        initInteractiveMap();
+
+        // Initialize capacity map
+        initCapacityMap();
+
+        // Setup interactive map controls
+        setupInteractiveDaySelector();
+        setupInteractiveTimeSlider();
+
+        // Setup capacity map controls
+        setupCapacityDaySelector();
+        setupCapacityTimeSlider();
 
         // Render initial visualization
         renderVisualization();
+        
+        // Render initial interactive map
+        renderInteractiveVisualization();
+
+        // Render initial capacity map
+        renderCapacityVisualization();
 
         // Start time cycling
         startTimeCycle();
 
         // Populate dataset section
-        populateDatasetSection();
+        await populateDatasetSection();
+
+        // Populate insights section
+        populateInsightsSection();
 
         // Setup scroll observers
         setupScrollObservers();
-
-        // Setup scroll snapping
-        setupScrollSnapping();
 
     } catch (error) {
         console.error('Error initializing app:', error);
@@ -506,10 +127,161 @@ function initMap() {
 }
 
 /**
+ * Calculate the time range from course data
+ */
+function calculateTimeRange() {
+    if (courseData.length === 0) {
+        minTime = 0;
+        maxTime = 1440;
+        return;
+    }
+
+    const startTimes = courseData.map(c => c.start_minutes).filter(t => t != null);
+    const endTimes = courseData.map(c => c.end_minutes).filter(t => t != null);
+
+    if (startTimes.length > 0 && endTimes.length > 0) {
+        minTime = Math.min(...startTimes);
+        maxTime = Math.max(...endTimes);
+        // Round down minTime and round up maxTime to nearest 15 minutes
+        minTime = Math.floor(minTime / 15) * 15;
+        maxTime = Math.ceil(maxTime / 15) * 15;
+        // Ensure selectedTime is within range
+        if (interactiveSelectedTime < minTime) interactiveSelectedTime = minTime;
+        if (interactiveSelectedTime > maxTime) interactiveSelectedTime = maxTime;
+    } else {
+        minTime = 0;
+        maxTime = 1440;
+    }
+}
+
+/**
+ * Initialize the interactive Leaflet map at bottom of section 5
+ */
+function initInteractiveMap() {
+    // Define the four corner points (same as map01.html)
+    const nw = [44.4788666, -73.1991804];
+    const ne = [44.4774707, -73.1990634];
+    const se = [44.4775079, -73.1971789];
+    const sw = [44.4789095, -73.1972329];
+    
+    // Calculate center point from the corner points
+    const allLats = [nw[0], ne[0], se[0], sw[0]];
+    const allLngs = [nw[1], ne[1], se[1], sw[1]];
+    
+    const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
+    const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
+    const initialZoom = 19;
+
+    // Initialize the interactive map
+    interactiveMap = L.map('map-container-interactive', {
+        minZoom: 14  // Prevent zooming out beyond level 14
+    });
+
+    // Set the initial view to center with zoom level 19
+    interactiveMap.setView([centerLat, centerLng], initialZoom);
+
+    // Add OpenStreetMap tiles (like in map01.html)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(interactiveMap);
+
+    // Add zoom event listener to update marker sizes and room number visibility
+    interactiveMap.on('zoomend', () => {
+        renderInteractiveVisualization();
+    });
+
+    console.log('Interactive map initialized');
+}
+
+/**
+ * Set up the day selector buttons for interactive map
+ */
+function setupInteractiveDaySelector() {
+    const days = [
+        { code: 'M', label: 'Mon' },
+        { code: 'T', label: 'Tue' },
+        { code: 'W', label: 'Wed' },
+        { code: 'R', label: 'Thu' },
+        { code: 'F', label: 'Fri' }
+    ];
+
+    const container = document.getElementById('day-selector-interactive');
+    if (!container) return;
+    
+    container.innerHTML = '<label class="control-label">Day:</label><div class="day-buttons"></div>';
+    const buttonsContainer = container.querySelector('.day-buttons');
+
+    days.forEach(day => {
+        const button = document.createElement('button');
+        button.textContent = day.label;
+        button.className = 'day-button';
+        button.dataset.day = day.code;
+
+        if (day.code === interactiveSelectedDay) {
+            button.classList.add('active');
+        }
+
+        button.addEventListener('click', () => {
+            interactiveSelectedDay = day.code;
+            // Update button states
+            buttonsContainer.querySelectorAll('.day-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+
+            // Re-render interactive visualization
+            renderInteractiveVisualization();
+        });
+
+        buttonsContainer.appendChild(button);
+    });
+}
+
+/**
+ * Set up the time slider for interactive map
+ */
+function setupInteractiveTimeSlider() {
+    const container = document.getElementById('time-control-interactive');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <label class="control-label">Time:</label>
+        <div class="time-slider-container">
+            <input type="range" id="time-slider-interactive" min="${minTime}" max="${maxTime}" value="${interactiveSelectedTime}" step="15">
+            <div class="time-display">
+                <span id="time-display-interactive">${formatTime(interactiveSelectedTime)}</span>
+            </div>
+        </div>
+    `;
+
+    const slider = document.getElementById('time-slider-interactive');
+    const display = document.getElementById('time-display-interactive');
+
+    if (slider && display) {
+        slider.addEventListener('input', (e) => {
+            interactiveSelectedTime = parseInt(e.target.value);
+            display.textContent = formatTime(interactiveSelectedTime);
+            renderInteractiveVisualization();
+        });
+    }
+}
+
+/**
  * Start automatic time cycling
  */
 function startTimeCycle() {
-    setInterval(() => {
+    // Clear any existing interval
+    if (timeCycleInterval) {
+        clearInterval(timeCycleInterval);
+    }
+    
+    timeCycleInterval = setInterval(() => {
+        // Don't cycle time if we're in a visualization section
+        if (isInVizSection) {
+            return;
+        }
+        
         selectedTime += TIME_STEP;
         
         // Loop back to start time when we reach the end
@@ -520,6 +292,16 @@ function startTimeCycle() {
         // Re-render visualization with new time
         renderVisualization();
     }, TIME_CYCLE_INTERVAL);
+}
+
+/**
+ * Pause time cycling
+ */
+function pauseTimeCycle() {
+    if (timeCycleInterval) {
+        clearInterval(timeCycleInterval);
+        timeCycleInterval = null;
+    }
 }
 
 /**
@@ -543,6 +325,18 @@ function filterCourses() {
             return false;
         }
         return selectedTime >= course.start_minutes && selectedTime <= course.end_minutes;
+    });
+}
+
+/**
+ * Filter course data for interactive map based on selected day and time
+ */
+function filterInteractiveCourses() {
+    return courseData.filter(course => {
+        if (course.day !== interactiveSelectedDay) {
+            return false;
+        }
+        return interactiveSelectedTime >= course.start_minutes && interactiveSelectedTime <= course.end_minutes;
     });
 }
 
@@ -625,6 +419,18 @@ function getBuildingRotation(buildingData) {
 function getIconSize() {
     if (!map) return BASE_ICON_SIZE;
     const currentZoom = map.getZoom();
+    const baseZoom = 17;
+    const scaleFactor = Math.pow(2, currentZoom - baseZoom);
+    return BASE_ICON_SIZE * scaleFactor;
+}
+
+/**
+ * Calculate icon size for interactive map based on current zoom level
+ */
+function getInteractiveIconSize(mapInstance = null) {
+    const mapToUse = mapInstance || interactiveMap;
+    if (!mapToUse) return BASE_ICON_SIZE;
+    const currentZoom = mapToUse.getZoom();
     const baseZoom = 17;
     const scaleFactor = Math.pow(2, currentZoom - baseZoom);
     return BASE_ICON_SIZE * scaleFactor;
@@ -785,6 +591,432 @@ function renderVisualization() {
 }
 
 /**
+ * Render the interactive visualization on the interactive map
+ */
+function renderInteractiveVisualization() {
+    if (!interactiveMap) {
+        console.error('Interactive map not initialized');
+        return;
+    }
+
+    // Clear existing markers and polygons
+    interactiveClassroomMarkers.forEach(marker => interactiveMap.removeLayer(marker));
+    interactiveClassroomMarkers = [];
+    interactiveBuildingPolygons.forEach(polygon => interactiveMap.removeLayer(polygon));
+    interactiveBuildingPolygons = [];
+
+    // Filter courses based on current selections (these are the active courses)
+    const filteredCourses = filterInteractiveCourses();
+
+    // Get all classrooms by building
+    const allClassrooms = getAllClassroomsByBuilding();
+
+    // Get which classrooms are currently in use
+    const inUseClassrooms = getInUseClassrooms(filteredCourses);
+
+    // Render buildings
+    Object.keys(buildingCoordinates).forEach(buildingName => {
+        const buildingData = buildingCoordinates[buildingName];
+        if (!buildingData.corners || !allClassrooms[buildingName]) {
+            return;
+        }
+
+        // Draw building outline
+        const polygon = L.polygon(buildingData.corners, {
+            color: 'transparent',
+            fillColor: 'transparent',
+            fillOpacity: 0.3,
+            weight: 2
+        }).addTo(interactiveMap);
+        interactiveBuildingPolygons.push(polygon);
+
+        // Get building bounds for positioning classrooms
+        const bounds = getBuildingBounds(buildingData.corners);
+        const buildingRotation = getBuildingRotation(buildingData);
+        const buildingConfig = buildingData.config || {};
+        const rooms = allClassrooms[buildingName];
+        const inUse = inUseClassrooms[buildingName] || new Set();
+
+        // Position classrooms inside the building
+        rooms.forEach((room, index) => {
+            const isInUse = inUse.has(room);
+            const coursesInRoom = getCoursesForRoom(filteredCourses, buildingName, room);
+
+            // Build tooltip content
+            let tooltipContent = '';
+            if (coursesInRoom.length > 0) {
+                tooltipContent = coursesInRoom.map(course => {
+                    const startTime = formatTime(course.start_minutes);
+                    const endTime = formatTime(course.end_minutes);
+                    const courseCode = (course.course || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const courseTitle = (course.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}`;
+                }).join('<br><br>');
+            } else {
+                tooltipContent = 'Available';
+            }
+
+            // Build enrollment display
+            let enrollmentDisplay = '';
+            let isOverCapacity = false;
+            if (coursesInRoom.length > 0) {
+                const firstCourse = coursesInRoom[0];
+                if (firstCourse.current_enrollment !== null && firstCourse.current_enrollment !== undefined &&
+                    firstCourse.max_enrollment !== null && firstCourse.max_enrollment !== undefined) {
+                    enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.max_enrollment}</div>`;
+                    // Check if class is over capacity
+                    isOverCapacity = firstCourse.current_enrollment > firstCourse.max_enrollment;
+                }
+            }
+
+            // Calculate position within building bounds using building config
+            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
+
+            // Check if we're at max zoom to show room numbers
+            const currentZoom = interactiveMap.getZoom();
+            const maxZoom = 19;
+            const showRoomNumber = currentZoom === maxZoom;
+            
+            // Create HTML for classroom box with rotation
+            // Use yellow for over-capacity classes, red for in-use but not over-capacity, green for available
+            let statusClass = 'classroom-available';
+            if (isInUse) {
+                statusClass = isOverCapacity ? 'classroom-over-capacity' : 'classroom-in-use';
+            }
+            const classroomHtml = `
+                <div class="classroom-cell ${statusClass}"
+                     data-building="${buildingName}"
+                     data-room="${room}"
+                     style="transform: rotate(${buildingRotation}deg);"
+                     title="${tooltipContent.replace(/"/g, '&quot;')}">
+                    <div class="classroom-content">
+                        ${showRoomNumber ? `<div class="classroom-number">${room}</div>` : ''}
+                        ${showRoomNumber ? enrollmentDisplay : ''}
+                    </div>
+                </div>
+            `;
+
+            // Create custom icon with the classroom box
+            const iconSize = getInteractiveIconSize();
+            const halfSize = iconSize / 2;
+            const icon = L.divIcon({
+                className: 'classroom-marker',
+                html: classroomHtml,
+                iconSize: [iconSize, iconSize],
+                iconAnchor: [halfSize, halfSize]
+            });
+
+            // Create marker at calculated position
+            const marker = L.marker([position.lat, position.lng], { icon: icon });
+
+            // Add popup with course info
+            if (tooltipContent) {
+                marker.bindPopup(tooltipContent);
+            }
+
+            marker.addTo(interactiveMap);
+            interactiveClassroomMarkers.push(marker);
+        });
+    });
+
+    console.log(`Rendered ${interactiveClassroomMarkers.length} classroom markers on interactive map`);
+}
+
+/**
+ * Initialize the capacity-based Leaflet map
+ */
+function initCapacityMap() {
+    // Define the four corner points (same as map02.html)
+    const nw = [44.4788666, -73.1991804];
+    const ne = [44.4774707, -73.1990634];
+    const se = [44.4775079, -73.1971789];
+    const sw = [44.4789095, -73.1972329];
+    
+    // Calculate center point from the corner points
+    const allLats = [nw[0], ne[0], se[0], sw[0]];
+    const allLngs = [nw[1], ne[1], se[1], sw[1]];
+    
+    const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
+    const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
+    const initialZoom = 19;
+
+    // Initialize the capacity map
+    capacityMap = L.map('map-container-capacity', {
+        minZoom: 14  // Prevent zooming out beyond level 14
+    });
+
+    // Set the initial view to center with zoom level 19
+    capacityMap.setView([centerLat, centerLng], initialZoom);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(capacityMap);
+
+    // Add zoom event listener to update marker sizes and room number visibility
+    capacityMap.on('zoomend', () => {
+        renderCapacityVisualization();
+    });
+
+    console.log('Capacity map initialized');
+}
+
+/**
+ * Set up the day selector buttons for capacity map
+ */
+function setupCapacityDaySelector() {
+    const days = [
+        { code: 'M', label: 'Mon' },
+        { code: 'T', label: 'Tue' },
+        { code: 'W', label: 'Wed' },
+        { code: 'R', label: 'Thu' },
+        { code: 'F', label: 'Fri' }
+    ];
+
+    const container = document.getElementById('day-selector-capacity');
+    if (!container) return;
+    
+    container.innerHTML = '<label class="control-label">Day:</label><div class="day-buttons"></div>';
+    const buttonsContainer = container.querySelector('.day-buttons');
+
+    days.forEach(day => {
+        const button = document.createElement('button');
+        button.textContent = day.label;
+        button.className = 'day-button';
+        button.dataset.day = day.code;
+
+        if (day.code === capacitySelectedDay) {
+            button.classList.add('active');
+        }
+
+        button.addEventListener('click', () => {
+            capacitySelectedDay = day.code;
+            // Update button states
+            buttonsContainer.querySelectorAll('.day-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+
+            // Re-render capacity visualization
+            renderCapacityVisualization();
+        });
+
+        buttonsContainer.appendChild(button);
+    });
+}
+
+/**
+ * Set up the time slider for capacity map
+ */
+function setupCapacityTimeSlider() {
+    const container = document.getElementById('time-control-capacity');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <label class="control-label">Time:</label>
+        <div class="time-slider-container">
+            <input type="range" id="time-slider-capacity" min="${minTime}" max="${maxTime}" value="${capacitySelectedTime}" step="15">
+            <div class="time-display">
+                <span id="time-display-capacity">${formatTime(capacitySelectedTime)}</span>
+            </div>
+        </div>
+    `;
+
+    const slider = document.getElementById('time-slider-capacity');
+    const display = document.getElementById('time-display-capacity');
+
+    if (slider && display) {
+        slider.addEventListener('input', (e) => {
+            capacitySelectedTime = parseInt(e.target.value);
+            display.textContent = formatTime(capacitySelectedTime);
+            renderCapacityVisualization();
+        });
+    }
+}
+
+/**
+ * Filter courses for capacity map based on selected day and time
+ */
+function filterCapacityCourses() {
+    return courseData.filter(course => {
+        // Match selected day
+        if (course.day !== capacitySelectedDay) {
+            return false;
+        }
+
+        // Check if selected time falls within course time range
+        return capacitySelectedTime >= course.start_minutes && capacitySelectedTime <= course.end_minutes;
+    });
+}
+
+/**
+ * Render the capacity-based visualization on the capacity map
+ */
+function renderCapacityVisualization() {
+    if (!capacityMap) {
+        console.error('Capacity map not initialized');
+        return;
+    }
+
+    // Clear existing markers and polygons
+    capacityClassroomMarkers.forEach(marker => capacityMap.removeLayer(marker));
+    capacityClassroomMarkers = [];
+    capacityBuildingPolygons.forEach(polygon => capacityMap.removeLayer(polygon));
+    capacityBuildingPolygons = [];
+
+    // Filter courses based on current selections
+    const filteredCourses = filterCapacityCourses();
+
+    // Get all classrooms by building
+    const allClassrooms = getAllClassroomsByBuilding();
+
+    // Get which classrooms are currently in use
+    const inUseClassrooms = getInUseClassrooms(filteredCourses);
+
+    // Render buildings
+    Object.keys(buildingCoordinates).forEach(buildingName => {
+        const buildingData = buildingCoordinates[buildingName];
+        if (!buildingData.corners || !allClassrooms[buildingName]) {
+            return;
+        }
+
+        // Draw building outline
+        const polygon = L.polygon(buildingData.corners, {
+            color: 'transparent',
+            fillColor: 'transparent',
+            fillOpacity: 0.3,
+            weight: 2
+        }).addTo(capacityMap);
+        capacityBuildingPolygons.push(polygon);
+
+        // Get building bounds for positioning classrooms
+        const bounds = getBuildingBounds(buildingData.corners);
+        const buildingRotation = getBuildingRotation(buildingData);
+        const buildingConfig = buildingData.config || {};
+        const rooms = allClassrooms[buildingName];
+        const inUse = inUseClassrooms[buildingName] || new Set();
+
+        // Position classrooms inside the building
+        rooms.forEach((room, index) => {
+            const isInUse = inUse.has(room);
+            const coursesInRoom = getCoursesForRoom(filteredCourses, buildingName, room);
+
+            // Build tooltip content
+            let tooltipContent = '';
+            if (coursesInRoom.length > 0) {
+                tooltipContent = coursesInRoom.map(course => {
+                    const startTime = formatTime(course.start_minutes);
+                    const endTime = formatTime(course.end_minutes);
+                    const courseCode = (course.course || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const courseTitle = (course.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const capacityNote = course.capacity_from_csv === false ? '<br><em style="font-size: 0.9em; color: #666;">(Estimated capacity)</em>' : '';
+                    return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}${capacityNote}`;
+                }).join('<br><br>');
+            } else {
+                tooltipContent = 'Available';
+            }
+
+            // Get capacity for this room (from any course that uses this room)
+            let roomCapacity = null;
+            let isHypotheticalCapacity = false;
+            const roomCourse = courseData.find(course => 
+                course.building === buildingName && 
+                course.room === room && 
+                course.capacity !== null && 
+                course.capacity !== undefined
+            );
+            if (roomCourse) {
+                roomCapacity = roomCourse.capacity;
+                isHypotheticalCapacity = !roomCourse.capacity_from_csv;
+            }
+
+            // Build enrollment display using capacity
+            let enrollmentDisplay = '';
+            let isOverCapacity = false;
+            let isAtOrOverCapacity = false;
+            if (coursesInRoom.length > 0) {
+                const firstCourse = coursesInRoom[0];
+                if (firstCourse.current_enrollment !== null && firstCourse.current_enrollment !== undefined &&
+                    firstCourse.capacity !== null && firstCourse.capacity !== undefined) {
+                    enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.capacity}</div>`;
+                    // Check if class is over capacity
+                    isOverCapacity = firstCourse.current_enrollment > firstCourse.capacity;
+                    // Check if at or over capacity for border
+                    isAtOrOverCapacity = firstCourse.current_enrollment >= firstCourse.capacity;
+                    // Update hypothetical capacity flag from the course
+                    if (firstCourse.capacity_from_csv === false) {
+                        isHypotheticalCapacity = true;
+                    }
+                }
+            } else if (roomCapacity !== null) {
+                // Show capacity for available rooms
+                enrollmentDisplay = `<div class="classroom-enrollment">0/${roomCapacity}</div>`;
+            }
+
+            // Update tooltip if capacity is hypothetical and room is available
+            if (coursesInRoom.length === 0 && isHypotheticalCapacity) {
+                tooltipContent += '<br><em style="font-size: 0.9em; color: #666;">(Estimated capacity)</em>';
+            }
+
+            // Calculate position within building bounds using building config
+            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
+
+            // Check if we're at max zoom to show room numbers
+            const currentZoom = capacityMap.getZoom();
+            const maxZoom = 19;
+            const showRoomNumber = currentZoom === maxZoom;
+            
+            // Create HTML for classroom box with rotation
+            // Use yellow for over-capacity classes, red for in-use but not over-capacity, green for available
+            let statusClass = 'classroom-available';
+            if (isInUse) {
+                statusClass = isOverCapacity ? 'classroom-over-capacity' : 'classroom-in-use';
+            }
+            // Add border class if at or over capacity
+            const borderClass = isAtOrOverCapacity ? 'classroom-at-capacity-border' : '';
+            // Add hypothetical class if capacity is estimated
+            const hypotheticalClass = isHypotheticalCapacity ? 'classroom-hypothetical-capacity' : '';
+            const classroomHtml = `
+                <div class="classroom-cell ${statusClass} ${borderClass} ${hypotheticalClass}"
+                     data-building="${buildingName}"
+                     data-room="${room}"
+                     style="transform: rotate(${buildingRotation}deg); position: relative;"
+                     title="${tooltipContent.replace(/"/g, '&quot;')}">
+                    <div class="classroom-content">
+                        ${showRoomNumber ? `<div class="classroom-number">${room}</div>` : ''}
+                        ${showRoomNumber ? enrollmentDisplay : ''}
+                    </div>
+                </div>
+            `;
+
+            // Create custom icon with the classroom box
+            const iconSize = getInteractiveIconSize(capacityMap);
+            const halfSize = iconSize / 2;
+            const icon = L.divIcon({
+                className: 'classroom-marker',
+                html: classroomHtml,
+                iconSize: [iconSize, iconSize],
+                iconAnchor: [halfSize, halfSize]
+            });
+
+            // Create marker at calculated position
+            const marker = L.marker([position.lat, position.lng], { icon: icon });
+
+            // Add popup with course info
+            if (tooltipContent) {
+                marker.bindPopup(tooltipContent);
+            }
+
+            marker.addTo(capacityMap);
+            capacityClassroomMarkers.push(marker);
+        });
+    });
+
+    console.log(`Rendered ${capacityClassroomMarkers.length} classroom markers on capacity map`);
+}
+
+/**
  * Calculate and display dataset statistics
  */
 function calculateDatasetStats() {
@@ -823,9 +1055,98 @@ function calculateDatasetStats() {
 }
 
 /**
+ * Parse CSV text into an array of objects
+ * Handles quoted fields that may contain commas
+ */
+function parseCSV(csvText) {
+    const lines = csvText.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    
+    // Parse header
+    const headerLine = lines[0];
+    const headers = [];
+    let currentHeader = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < headerLine.length; i++) {
+        const char = headerLine[i];
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            headers.push(currentHeader.trim().replace(/^"|"$/g, ''));
+            currentHeader = '';
+        } else {
+            currentHeader += char;
+        }
+    }
+    headers.push(currentHeader.trim().replace(/^"|"$/g, '')); // Add last header
+    
+    // Parse data rows
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue; // Skip empty lines
+        
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        // Handle quoted fields that may contain commas
+        for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+                // Check for escaped quotes ("")
+                if (j + 1 < line.length && line[j + 1] === '"' && inQuotes) {
+                    current += '"';
+                    j++; // Skip next quote
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        values.push(current.trim()); // Add last value
+        
+        // Ensure we have the right number of values (pad with empty strings if needed)
+        while (values.length < headers.length) {
+            values.push('');
+        }
+        
+        // Create object from headers and values
+        const row = {};
+        headers.forEach((header, index) => {
+            let value = values[index] || '';
+            // Remove surrounding quotes if present
+            if (value.startsWith('"') && value.endsWith('"') && value.length > 1) {
+                value = value.slice(1, -1);
+            }
+            // Handle escaped quotes within the value
+            value = value.replace(/""/g, '"');
+            row[header] = value;
+        });
+        rows.push(row);
+    }
+    
+    return rows;
+}
+
+/**
+ * Format day string from CSV format (e.g., "M  W  F   " -> "M W F")
+ */
+function formatDayString(days) {
+    if (!days) return 'N/A';
+    // Remove extra spaces and return single letter days
+    return days.trim().replace(/\s+/g, ' ').split(' ').filter(d => d.length > 0).join(' ') || 'N/A';
+}
+
+/**
  * Populate the dataset section with statistics and sample data
  */
-function populateDatasetSection() {
+async function populateDatasetSection() {
     const stats = calculateDatasetStats();
     
     // Update statistics
@@ -834,209 +1155,403 @@ function populateDatasetSection() {
     document.getElementById('stat-classrooms').textContent = stats.totalClassrooms.toLocaleString();
     document.getElementById('stat-courses-unique').textContent = stats.totalUniqueCourses.toLocaleString();
     
-    // Populate sample data table (show 5 random samples)
-    const sampleSize = Math.min(5, courseData.length);
-    const shuffled = [...courseData].sort(() => 0.5 - Math.random());
-    const samples = shuffled.slice(0, sampleSize);
+    // Load CSV file for sample data
+    try {
+        const csvResponse = await fetch('data/2025 Fall.csv');
+        if (!csvResponse.ok) {
+            throw new Error(`Failed to load CSV: ${csvResponse.statusText}`);
+        }
+        const csvText = await csvResponse.text();
+        const csvData = parseCSV(csvText);
+        
+        // Filter out rows with TBA times, empty buildings, or online courses
+        const validRows = csvData.filter(row => {
+            const startTime = row['Start Time']?.trim();
+            const building = row['Bldg']?.trim();
+            return startTime && 
+                   startTime !== 'TBA' && 
+                   building && 
+                   building !== 'ONLINE' && 
+                   building !== '' &&
+                   row['Room']?.trim() !== 'SEE NOTES';
+        });
+        
+        // Populate sample data table (show 5 random samples from CSV)
+        const sampleSize = Math.min(5, validRows.length);
+        const shuffled = [...validRows].sort(() => 0.5 - Math.random());
+        const samples = shuffled.slice(0, sampleSize);
+        
+        const tbody = document.getElementById('sample-data-body');
+        tbody.innerHTML = '';
+        
+        samples.forEach(row => {
+            const tableRow = document.createElement('tr');
+            
+            // Helper function to safely get and display cell value
+            const getValue = (key) => {
+                const value = row[key];
+                return value !== undefined && value !== null && value.trim() !== '' ? value.trim() : 'N/A';
+            };
+            
+            // Populate all columns in the same order as the CSV header
+            tableRow.innerHTML = `
+                <td>${getValue('Subj')}</td>
+                <td>${getValue('#')}</td>
+                <td>${getValue('Title')}</td>
+                <td>${getValue('Comp Numb')}</td>
+                <td>${getValue('Sec')}</td>
+                <td>${getValue('Ptrm')}</td>
+                <td>${getValue('Lec Lab')}</td>
+                <td>${getValue('Attr')}</td>
+                <td>${getValue('Camp Code')}</td>
+                <td>${getValue('Coll Code')}</td>
+                <td>${getValue('Max Enrollment')}</td>
+                <td>${getValue('Current Enrollment')}</td>
+                <td>${getValue('True Max')}</td>
+                <td>${getValue('Start Time')}</td>
+                <td>${getValue('End Time')}</td>
+                <td>${getValue('Days')}</td>
+                <td>${getValue('Credits')}</td>
+                <td>${getValue('Bldg')}</td>
+                <td>${getValue('Room')}</td>
+                <td>${getValue('GP Ind')}</td>
+                <td>${getValue('Instructor')}</td>
+                <td>${getValue('NetId')}</td>
+                <td>${getValue('Email')}</td>
+                <td>${getValue('Fees')}</td>
+                <td>${getValue('XListings')}</td>
+            `;
+            
+            tbody.appendChild(tableRow);
+        });
+    } catch (error) {
+        console.error('Error loading CSV for sample data:', error);
+        // Fallback: show message in table
+        const tbody = document.getElementById('sample-data-body');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: rgba(255, 255, 255, 0.7);">Unable to load sample data</td></tr>';
+    }
+}
+
+/**
+ * Calculate big picture statistics
+ */
+function calculateBigPictureStats() {
+    let overCapacityCount = 0;
+    let overCapacityStudents = 0;
+    let totalClassHours = 0;
+    let totalAvailableHours = 0;
+    let underutilizedRooms = new Set();
+    let roomUsageByTime = {}; // Track room usage by time slot
     
-    const tbody = document.getElementById('sample-data-body');
-    tbody.innerHTML = '';
+    // Track rooms that are often empty during peak times
+    const peakTimes = [600, 630, 660, 690, 720, 750, 780, 810]; // 10 AM - 1:30 PM
+    const roomEmptyCount = {}; // Count how often each room is empty during peak times
     
-    samples.forEach(course => {
-        const row = document.createElement('tr');
+    courseData.forEach(course => {
+        // Check for over-capacity classes (using physical room capacity)
+        if (course.current_enrollment !== null && 
+            course.capacity !== null && 
+            course.current_enrollment > course.capacity) {
+            overCapacityCount++;
+            overCapacityStudents += (course.current_enrollment - course.capacity);
+        }
         
-        const startTime = formatTime(course.start_minutes);
-        const endTime = formatTime(course.end_minutes);
-        const timeRange = `${startTime} - ${endTime}`;
+        // Calculate utilization
+        if (course.start_minutes !== null && course.end_minutes !== null) {
+            const duration = course.end_minutes - course.start_minutes;
+            totalClassHours += duration;
+        }
         
-        const enrollment = course.current_enrollment !== null && course.max_enrollment !== null
-            ? `${course.current_enrollment}/${course.max_enrollment}`
-            : 'N/A';
+        // Track room usage during peak times
+        const roomKey = `${course.building}-${course.room}`;
+        if (!roomUsageByTime[roomKey]) {
+            roomUsageByTime[roomKey] = new Set();
+            roomEmptyCount[roomKey] = 0;
+        }
         
-        row.innerHTML = `
-            <td><strong>${course.course || 'N/A'}</strong></td>
-            <td>${course.title || 'N/A'}</td>
-            <td>${course.building || 'N/A'}</td>
-            <td>${course.room || 'N/A'}</td>
-            <td>${course.day || 'N/A'}</td>
-            <td>${timeRange}</td>
-            <td>${enrollment}</td>
+        // Mark this room as used during its time slot
+        for (let time = course.start_minutes; time < course.end_minutes; time += 15) {
+            roomUsageByTime[roomKey].add(time);
+        }
+    });
+    
+    // Check which rooms are empty during peak times
+    Object.keys(roomUsageByTime).forEach(roomKey => {
+        let emptyDuringPeak = 0;
+        peakTimes.forEach(peakTime => {
+            if (!roomUsageByTime[roomKey].has(peakTime)) {
+                emptyDuringPeak++;
+            }
+        });
+        // If room is empty during 50%+ of peak times, consider it underutilized
+        if (emptyDuringPeak >= peakTimes.length * 0.5) {
+            underutilizedRooms.add(roomKey);
+        }
+    });
+    
+    // Calculate total available hours (simplified: assume 8 AM - 6 PM, Mon-Fri)
+    const totalRooms = new Set(courseData.map(c => `${c.building}-${c.room}`)).size;
+    const hoursPerDay = (18 * 60) - (8 * 60); // 10 hours
+    const daysPerWeek = 5;
+    const weeksPerSemester = 15; // Approximate
+    totalAvailableHours = totalRooms * hoursPerDay * daysPerWeek * weeksPerSemester;
+    
+    const utilizationRate = totalAvailableHours > 0 
+        ? ((totalClassHours / totalAvailableHours) * 100).toFixed(1)
+        : 0;
+    
+    return {
+        overCapacityCount,
+        overCapacityStudents,
+        utilizationRate,
+        underutilizedRoomsCount: underutilizedRooms.size,
+        totalClassHours,
+        totalAvailableHours
+    };
+}
+
+/**
+ * Find relocation opportunities for over-capacity classes
+ */
+function findRelocationOpportunities() {
+    const opportunities = [];
+    
+    // Get all over-capacity classes
+    const overCapacityClasses = courseData.filter(course => 
+        course.current_enrollment !== null && 
+        course.capacity !== null && 
+        course.current_enrollment > course.capacity
+    );
+    
+    // Build a map of all unique rooms with their capacities
+    // Use the same approach as renderCapacityVisualization
+    const roomCapacities = new Map();
+    courseData.forEach(course => {
+        if (course.capacity !== null && course.capacity !== undefined) {
+            const roomKey = `${course.building}-${course.room}`;
+            // Use the first capacity found for this room (should be consistent across courses)
+            if (!roomCapacities.has(roomKey)) {
+                roomCapacities.set(roomKey, {
+                    building: course.building,
+                    room: course.room,
+                    capacity: course.capacity
+                });
+            }
+        }
+    });
+    
+    // For each over-capacity class, find available rooms at that time
+    overCapacityClasses.forEach(problemClass => {
+        const requiredCapacity = problemClass.current_enrollment;
+        const classDay = problemClass.day;
+        const classStart = problemClass.start_minutes;
+        const classEnd = problemClass.end_minutes;
+        const currentRoomKey = `${problemClass.building}-${problemClass.room}`;
+        
+        // Find all rooms that could accommodate this class
+        const suggestedRooms = [];
+        
+        roomCapacities.forEach((roomData, roomKey) => {
+            // Skip the current room
+            if (roomKey === currentRoomKey) {
+                return;
+            }
+            
+            // Check if room has sufficient capacity
+            if (roomData.capacity < requiredCapacity) {
+                return;
+            }
+            
+            // Check if room is available during this time slot
+            const conflictingClasses = courseData.filter(c => 
+                c.building === roomData.building &&
+                c.room === roomData.room &&
+                c.day === classDay &&
+                !(c.end_minutes <= classStart || c.start_minutes >= classEnd)
+            );
+            
+            // If no conflicts, this room is available
+            if (conflictingClasses.length === 0) {
+                suggestedRooms.push({
+                    building: roomData.building,
+                    room: roomData.room,
+                    capacity: roomData.capacity
+                });
+            }
+        });
+        
+        // If we found suggestions, add this opportunity
+        if (suggestedRooms.length > 0) {
+            // Sort by capacity (prefer rooms that are just big enough, not too large)
+            suggestedRooms.sort((a, b) => a.capacity - b.capacity);
+            
+            opportunities.push({
+                problemClass: {
+                    course: problemClass.course,
+                    title: problemClass.title,
+                    building: problemClass.building,
+                    room: problemClass.room,
+                    currentCapacity: problemClass.capacity,
+                    enrollment: problemClass.current_enrollment,
+                    day: problemClass.day,
+                    time: `${formatTime(problemClass.start_minutes)} - ${formatTime(problemClass.end_minutes)}`,
+                    overflow: problemClass.current_enrollment - problemClass.capacity
+                },
+                suggestedRooms: suggestedRooms.slice(0, 3) // Top 3 suggestions
+            });
+        }
+    });
+    
+    // Sort by severity (most over-capacity first)
+    opportunities.sort((a, b) => b.problemClass.overflow - a.problemClass.overflow);
+    
+    return opportunities;
+}
+
+/**
+ * Populate insights section
+ */
+function populateInsightsSection() {
+    // Calculate big picture stats
+    const bigPicture = calculateBigPictureStats();
+    
+    // Update stat cards
+    const overCapacityEl = document.getElementById('stat-over-capacity-classes');
+    const overCapacityStudentsEl = document.getElementById('stat-over-capacity-students');
+    const utilizationRateEl = document.getElementById('stat-utilization-rate');
+    const underutilizedRoomsEl = document.getElementById('stat-underutilized-rooms');
+    const relocationOppsEl = document.getElementById('stat-relocation-opportunities');
+    
+    if (overCapacityEl) {
+        overCapacityEl.textContent = bigPicture.overCapacityCount;
+    }
+    if (overCapacityStudentsEl) {
+        overCapacityStudentsEl.textContent = 
+            `${bigPicture.overCapacityStudents} students affected`;
+    }
+    if (utilizationRateEl) {
+        utilizationRateEl.textContent = `${bigPicture.utilizationRate}%`;
+    }
+    if (underutilizedRoomsEl) {
+        underutilizedRoomsEl.textContent = bigPicture.underutilizedRoomsCount;
+    }
+    
+    // Find relocation opportunities
+    const opportunities = findRelocationOpportunities();
+    if (relocationOppsEl) {
+        relocationOppsEl.textContent = opportunities.length;
+    }
+    
+    // Display recommendations
+    const container = document.getElementById('recommendations-container');
+    if (!container) {
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    if (opportunities.length === 0) {
+        container.innerHTML = '<p class="section-text">No relocation opportunities found. All over-capacity classes may already be in the best available rooms, or no suitable alternatives exist at those times.</p>';
+        return;
+    }
+    
+    // Show top 10 opportunities
+    const dayNames = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'R': 'Thursday', 'F': 'Friday' };
+    
+    opportunities.slice(0, 10).forEach((opp, index) => {
+        const card = document.createElement('div');
+        card.className = 'recommendation-card';
+        
+        card.innerHTML = `
+            <div class="recommendation-header">
+                <h4>${opp.problemClass.course} - ${opp.problemClass.title}</h4>
+                <span class="recommendation-badge">${opp.problemClass.overflow} over capacity</span>
+            </div>
+            <div class="recommendation-problem">
+                <strong>Current situation:</strong> ${opp.problemClass.enrollment} students in 
+                ${opp.problemClass.building} ${opp.problemClass.room} (capacity: ${opp.problemClass.currentCapacity})
+                <br>
+                <strong>Time:</strong> ${dayNames[opp.problemClass.day] || opp.problemClass.day}, ${opp.problemClass.time}
+            </div>
+            <div class="recommendation-solutions">
+                <strong>Suggested alternatives:</strong>
+                <ul>
+                    ${opp.suggestedRooms.map(room => 
+                        `<li><strong>${room.building} ${room.room}</strong> (capacity: ${room.capacity}) - Available at this time</li>`
+                    ).join('')}
+                </ul>
+            </div>
         `;
         
-        tbody.appendChild(row);
+        container.appendChild(card);
     });
 }
 
 /**
- * Setup Intersection Observer to dim map when dataset section is in view
+ * Setup Intersection Observer to dim map when text sections are in view
+ * and handle visualization sections differently
  */
 function setupScrollObservers() {
     const mapContainer = document.getElementById('map-container');
-    const datasetSection = document.getElementById('dataset-section');
+    const sectionsToDim = [
+        document.getElementById('dataset-section'),
+        document.getElementById('problem-section'),
+        document.getElementById('cleaning-section'),
+        document.getElementById('insights-section')
+    ];
+    const vizSection = document.getElementById('viz-section');
     
-    if (!datasetSection || !mapContainer) {
+    if (!mapContainer) {
         return;
     }
     
-    const observer = new IntersectionObserver((entries) => {
+    // Observer for text sections (dim map)
+    const textObserver = new IntersectionObserver((entries) => {
+        // Check if any dimmed section is in view
+        const anySectionInView = entries.some(entry => entry.isIntersecting);
+        
+        // Only dim if we're not in a visualization section
+        if (anySectionInView && !isInVizSection) {
+            mapContainer.classList.add('dimmed');
+        } else if (!anySectionInView && !isInVizSection) {
+            mapContainer.classList.remove('dimmed');
+        }
+    }, {
+        threshold: 0.2
+    });
+    
+    // Observer for visualization sections (full map visibility)
+    const vizObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                // Section is in view - dim the map
-                mapContainer.classList.add('dimmed');
-            } else {
-                // Section is out of view - restore map opacity
+                // Visualization section is in view - show map fully, pause time cycling
+                isInVizSection = true;
                 mapContainer.classList.remove('dimmed');
+                pauseTimeCycle();
+                // Set a specific time for visualization (e.g., 10:00 AM)
+                selectedTime = 600; // 10:00 AM
+                renderVisualization();
+            } else {
+                // Visualization section is out of view - resume time cycling
+                isInVizSection = false;
+                startTimeCycle();
             }
         });
     }, {
-        threshold: 0.2 // Trigger when 20% of section is visible
+        threshold: 0.3
     });
     
-    observer.observe(datasetSection);
-}
-
-/**
- * Setup scroll snapping behavior - one scroll = one section
- */
-function setupScrollSnapping() {
-    let isScrolling = false;
-    let scrollTimeout = null;
+    // Observe all sections that should dim the map
+    sectionsToDim.forEach(section => {
+        if (section) {
+            textObserver.observe(section);
+        }
+    });
     
-    // Get all sections
-    const sections = document.querySelectorAll('section[class^="section-"]');
-    
-    if (sections.length === 0) {
-        return;
+    // Observe visualization section
+    if (vizSection) {
+        vizObserver.observe(vizSection);
     }
-    
-    // Handle wheel events for precise section snapping
-    let lastScrollTime = 0;
-    const scrollCooldown = 500; // Minimum time between scrolls (ms)
-    
-    window.addEventListener('wheel', (e) => {
-        const now = Date.now();
-        
-        // Prevent scrolling if we're in cooldown period
-        if (now - lastScrollTime < scrollCooldown) {
-            e.preventDefault();
-            return;
-        }
-        
-        // Find current section
-        const currentScroll = window.scrollY;
-        const viewportHeight = window.innerHeight;
-        let currentSectionIndex = -1;
-        
-        sections.forEach((section, index) => {
-            const sectionTop = section.offsetTop;
-            const sectionBottom = sectionTop + section.offsetHeight;
-            
-            // Check if we're in this section (with some tolerance)
-            if (currentScroll >= sectionTop - viewportHeight * 0.3 && 
-                currentScroll < sectionBottom - viewportHeight * 0.3) {
-                currentSectionIndex = index;
-            }
-        });
-        
-        // If we couldn't find current section, determine it based on scroll position
-        if (currentSectionIndex === -1) {
-            sections.forEach((section, index) => {
-                if (currentScroll < section.offsetTop + section.offsetHeight / 2) {
-                    if (currentSectionIndex === -1) {
-                        currentSectionIndex = index;
-                    }
-                }
-            });
-            if (currentSectionIndex === -1) {
-                currentSectionIndex = sections.length - 1;
-            }
-        }
-        
-        // Determine scroll direction
-        const scrollDown = e.deltaY > 0;
-        
-        // Calculate next section
-        let nextSectionIndex = currentSectionIndex;
-        if (scrollDown && currentSectionIndex < sections.length - 1) {
-            nextSectionIndex = currentSectionIndex + 1;
-        } else if (!scrollDown && currentSectionIndex > 0) {
-            nextSectionIndex = currentSectionIndex - 1;
-        }
-        
-        // If we're moving to a different section, snap to it
-        if (nextSectionIndex !== currentSectionIndex) {
-            e.preventDefault();
-            lastScrollTime = now;
-            
-            const nextSection = sections[nextSectionIndex];
-            nextSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-    }, { passive: false });
-    
-    // Also handle touch events for mobile
-    let touchStartY = 0;
-    let touchEndY = 0;
-    
-    window.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    
-    window.addEventListener('touchend', (e) => {
-        touchEndY = e.changedTouches[0].clientY;
-        const touchDiff = touchStartY - touchEndY;
-        const minSwipeDistance = 50;
-        
-        if (Math.abs(touchDiff) > minSwipeDistance) {
-            const currentScroll = window.scrollY;
-            const viewportHeight = window.innerHeight;
-            let currentSectionIndex = -1;
-            
-            sections.forEach((section, index) => {
-                const sectionTop = section.offsetTop;
-                if (currentScroll >= sectionTop - viewportHeight * 0.3 && 
-                    currentScroll < sectionTop + section.offsetHeight - viewportHeight * 0.3) {
-                    currentSectionIndex = index;
-                }
-            });
-            
-            if (currentSectionIndex === -1) {
-                sections.forEach((section, index) => {
-                    if (currentScroll < section.offsetTop + section.offsetHeight / 2) {
-                        if (currentSectionIndex === -1) {
-                            currentSectionIndex = index;
-                        }
-                    }
-                });
-                if (currentSectionIndex === -1) {
-                    currentSectionIndex = sections.length - 1;
-                }
-            }
-            
-            const scrollDown = touchDiff < 0;
-            let nextSectionIndex = currentSectionIndex;
-            
-            if (scrollDown && currentSectionIndex < sections.length - 1) {
-                nextSectionIndex = currentSectionIndex + 1;
-            } else if (!scrollDown && currentSectionIndex > 0) {
-                nextSectionIndex = currentSectionIndex - 1;
-            }
-            
-            if (nextSectionIndex !== currentSectionIndex) {
-                const now = Date.now();
-                if (now - lastScrollTime >= scrollCooldown) {
-                    lastScrollTime = now;
-                    const nextSection = sections[nextSectionIndex];
-                    nextSection.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start' 
-                    });
-                }
-            }
-        }
-    }, { passive: true });
 }
 
 // Initialize app when DOM is ready

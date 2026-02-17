@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="css/styles.css">
     <style>
         html {
-            scroll-snap-type: y mandatory;
             scroll-behavior: smooth;
         }
 
@@ -35,10 +34,21 @@
             opacity: 0.3;
         }
 
+
         /* Story sections container */
         .story-sections {
             position: relative;
             z-index: 2;
+        }
+
+        /* Visualization sections should allow map to show through */
+        .section-viz {
+            background: transparent !important;
+            position: relative;
+        }
+
+        .section-viz .viz-overlay {
+            pointer-events: auto;
         }
 
         /* Section 1: Hero */
@@ -51,8 +61,6 @@
             justify-content: center;
             align-items: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1), rgba(0,0,0,0.3));
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
         }
 
         .story-content {
@@ -125,52 +133,305 @@
             display: flex;
             align-items: center;
             padding: 80px 40px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+        }
+
+        /* Section 3: The Problem */
+        .section-problem {
+            position: relative;
+            width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 80px 40px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+        }
+
+        .problem-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            padding: 50px;
+            max-width: 1000px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .problem-content {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .problem-experience {
+            background: rgba(231, 76, 60, 0.15);
+            border-left: 4px solid #e74c3c;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .problem-experience h3 {
+            font-size: 1.5em;
+            color: #e74c3c;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .problem-hypothesis {
+            background: rgba(52, 152, 219, 0.15);
+            border-left: 4px solid #3498db;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .problem-hypothesis h3 {
+            font-size: 1.5em;
+            color: #3498db;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .investigation-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .investigation-list li {
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #3498db;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.05em;
+            line-height: 1.6;
+        }
+
+        .investigation-list li::before {
+            content: '→';
+            color: #3498db;
+            font-weight: bold;
+            margin-right: 12px;
+            font-size: 1.2em;
+        }
+
+        /* Section 4: Data Cleaning */
+        .section-cleaning {
+            position: relative;
+            width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 80px 40px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1), rgba(0,0,0,0.3));
             scroll-snap-align: start;
             scroll-snap-stop: always;
         }
 
-        .dataset-panel {
-            background: rgba(255, 255, 255, 0.95);
+        .cleaning-panel {
+            background: rgba(0, 0, 0, 0.7);
             border-radius: 12px;
             padding: 50px;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .cleaning-content {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .cleaning-step {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #2ecc71;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .cleaning-step.removed {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .cleaning-step h4 {
+            font-size: 1.2em;
+            color: #2ecc71;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+            font-weight: 600;
+        }
+
+        .cleaning-step.removed h4 {
+            color: #e74c3c;
+        }
+
+        .cleaning-step p {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.7;
+            margin: 0;
+        }
+
+        /* Dropdown for cleaning steps */
+        .cleaning-details {
+            margin: 20px 0;
+        }
+
+        .cleaning-summary-toggle {
+            background: rgba(52, 152, 219, 0.2);
+            border: 2px solid #3498db;
+            color: #3498db;
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            list-style: none;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .cleaning-summary-toggle:hover {
+            background: rgba(52, 152, 219, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+        }
+
+        .cleaning-summary-toggle::-webkit-details-marker {
+            display: none;
+        }
+
+        .cleaning-summary-toggle::marker {
+            display: none;
+        }
+
+        .cleaning-summary-toggle::before {
+            content: '▼ ';
+            display: inline-block;
+            margin-right: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .cleaning-details[open] .cleaning-summary-toggle::before {
+            transform: rotate(180deg);
+        }
+
+        .cleaning-steps-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .cleaning-summary {
+            background: rgba(52, 152, 219, 0.15);
+            border-left: 4px solid #3498db;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .cleaning-summary h3 {
+            font-size: 1.5em;
+            color: #3498db;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .removed-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .removed-item {
+            background: rgba(231, 76, 60, 0.2);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .removed-item strong {
+            color: #e74c3c;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .removed-item span {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+        }
+
+        .dataset-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            padding: 50px;
+            max-width: 1400px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(10px);
         }
 
         .section-title {
             font-size: 2.5em;
             font-weight: 700;
-            color: #2c3e50;
+            color: white;
             margin-bottom: 20px;
             line-height: 1.2;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
 
         .section-text {
             font-size: 1.1em;
             line-height: 1.8;
-            color: #34495e;
+            color: rgba(255, 255, 255, 0.9);
             margin-bottom: 30px;
         }
 
+        .dataset-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+            margin-bottom: 30px;
+        }
+
+        .dataset-description {
+            display: flex;
+            flex-direction: column;
+        }
+
         .data-sample {
-            margin-top: 30px;
             overflow-x: auto;
+        }
+
+        .data-sample h3 {
+            font-size: 1.3em;
+            color: white;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
 
         .data-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.95em;
-            background: white;
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .data-table thead {
-            background: #3498db;
+            background: rgba(52, 152, 219, 0.8);
             color: white;
         }
 
@@ -185,12 +446,12 @@
 
         .data-table td {
             padding: 12px 15px;
-            border-bottom: 1px solid #ecf0f1;
-            color: #2c3e50;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .data-table tbody tr:hover {
-            background: #f8f9fa;
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .data-table tbody tr:last-child td {
@@ -205,10 +466,11 @@
         }
 
         .stat-box {
-            background: #f8f9fa;
+            background: rgba(255, 255, 255, 0.15);
             padding: 20px;
             border-radius: 8px;
             text-align: center;
+            backdrop-filter: blur(5px);
         }
 
         .stat-number {
@@ -216,11 +478,12 @@
             font-weight: 700;
             color: #3498db;
             margin-bottom: 5px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
 
         .stat-label {
             font-size: 0.9em;
-            color: #7f8c8d;
+            color: rgba(255, 255, 255, 0.8);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -233,6 +496,468 @@
         .leaflet-control-container {
             display: none !important;
         }
+
+        /* Responsive layout for smaller screens */
+        @media (max-width: 1200px) {
+            .dataset-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dataset-panel,
+            .problem-panel {
+                padding: 30px;
+            }
+
+            .section-title {
+                font-size: 2em;
+            }
+
+            .data-table {
+                font-size: 0.85em;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 8px 10px;
+            }
+
+            .problem-experience h3,
+            .problem-hypothesis h3 {
+                font-size: 1.3em;
+            }
+
+            .cleaning-panel {
+                padding: 30px;
+            }
+
+            .cleaning-step h4 {
+                font-size: 1.1em;
+            }
+
+            .removed-items {
+                grid-template-columns: 1fr;
+            }
+
+            .viz-overlay {
+                padding: 20px;
+            }
+
+            .viz-title {
+                font-size: 2.5em;
+            }
+
+            .viz-subtitle {
+                font-size: 1.1em;
+            }
+        }
+
+        /* Section 5: First Visualization */
+        .section-viz {
+            position: relative;
+            width: 100vw;
+            min-height: 100vh;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Course-Based capacity section with dark gray background */
+        #viz-section {
+            background: #1a1a1a;
+        }
+
+        .viz-overlay {
+            position: relative;
+            width: 100%;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 60px 40px 30px;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+
+        .viz-content {
+            background: rgba(0, 0, 0, 0.75);
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 900px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .viz-title {
+            font-size: 3em;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .viz-subtitle {
+            font-size: 1.3em;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.7;
+            margin-bottom: 25px;
+        }
+
+        .viz-note {
+            background: rgba(52, 152, 219, 0.2);
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .viz-note p {
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .viz-note strong {
+            color: #3498db;
+        }
+
+        /* Map controls for interactive map */
+        .viz-controls {
+            position: relative;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 1000px;
+            padding: 15px 30px;
+            z-index: 5;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            flex-wrap: nowrap;
+            border-radius: 8px 8px 0 0;
+            margin-top: 20px;
+        }
+
+        .viz-controls .day-selector,
+        .viz-controls .time-control {
+            margin: 0;
+        }
+
+        .viz-controls .control-label {
+            color: white;
+        }
+
+        .viz-controls .day-button {
+            border-color: #3498db;
+            color: #3498db;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .viz-controls .day-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .viz-controls .day-button.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .viz-controls .time-display {
+            color: white;
+        }
+
+        .viz-controls #time-slider {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .viz-controls #time-slider::-webkit-slider-thumb {
+            background: #3498db;
+        }
+
+        .viz-controls #time-slider::-moz-range-thumb {
+            background: #3498db;
+        }
+
+        /* Legend for classroom status colors */
+        .viz-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .viz-legend-label {
+            color: white;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .legend-color.available {
+            background: #d5f4e6;
+            border-color: #27ae60;
+        }
+
+        .legend-color.in-use {
+            background: #fadbd8;
+            border-color: #e74c3c;
+        }
+
+        .legend-color.over-capacity {
+            background: #fef5e7;
+            border-color: #f39c12;
+        }
+
+        /* Hypothetical capacity styling */
+        .classroom-hypothetical-capacity {
+            border-style: dashed !important;
+            border-width: 2px !important;
+        }
+
+        .classroom-hypothetical-capacity.classroom-at-capacity-border {
+            border-style: dashed !important;
+            border-width: 3px !important;
+        }
+
+        .classroom-hypothetical-indicator {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 0.7em;
+            color: #666;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Interactive map container at bottom of section 5 */
+        #map-container-interactive {
+            position: relative;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 1000px;
+            height: 400px;
+            z-index: 4;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+            margin-bottom: 40px;
+        }
+
+        /* Room-Based capacity section with dark gray background */
+        #viz-section-capacity {
+            background: #1a1a1a;
+        }
+
+        /* Interactive map container for capacity section */
+        #map-container-capacity {
+            position: relative;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 1000px;
+            height: 400px;
+            z-index: 4;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+            margin-bottom: 40px;
+        }
+
+        /* Insights Section */
+        .section-insights {
+            position: relative;
+            width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 80px 40px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+        }
+
+        .insights-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            padding: 50px;
+            max-width: 1400px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .insights-subtitle {
+            font-size: 2em;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 30px;
+            margin-top: 40px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .insights-subtitle:first-child {
+            margin-top: 0;
+        }
+
+        .insights-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .insight-stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border-left: 4px solid #3498db;
+        }
+
+        .insight-stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #3498db;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .insight-stat-label {
+            font-size: 1.1em;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .insight-stat-detail {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+        }
+
+        .recommendation-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #f39c12;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .recommendation-header h4 {
+            font-size: 1.3em;
+            color: white;
+            margin: 0;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .recommendation-badge {
+            background: rgba(243, 156, 18, 0.3);
+            border: 2px solid #f39c12;
+            color: #f39c12;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .recommendation-problem {
+            background: rgba(231, 76, 60, 0.15);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+
+        .recommendation-problem strong {
+            color: #e74c3c;
+        }
+
+        .recommendation-solutions {
+            background: rgba(46, 204, 113, 0.15);
+            padding: 15px;
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+
+        .recommendation-solutions strong {
+            color: #2ecc71;
+        }
+
+        .recommendation-solutions ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .recommendation-solutions li {
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .insights-panel {
+                padding: 30px;
+            }
+
+            .insights-subtitle {
+                font-size: 1.5em;
+            }
+
+            .insights-stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .recommendation-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -245,7 +970,7 @@
         <section class="section-hero">
             <div class="story-content">
                 <h1 class="story-title">Classroom Allocator</h1>
-                <p class="story-subtitle">Exploring classroom utilization and allocation across campus to understand space optimization opportunities.</p>
+                <p class="story-subtitle">Exploring opportunities for classroom optimization across the University of Vermont campus.</p>
             </div>
             <div class="scroll-indicator">Scroll to explore</div>
         </section>
@@ -254,57 +979,321 @@
         <section class="section-dataset" id="dataset-section">
             <div class="dataset-panel">
                 <h2 class="section-title">The Dataset</h2>
-                <p class="section-text">
-                    Our analysis is based on the Fall 2025 course schedule data, which contains detailed information about every class meeting across campus. This dataset includes course codes, titles, meeting times, locations, and enrollment information.
-                </p>
-                <p class="section-text">
-                    Each record represents a single class meeting on a specific day, allowing us to analyze classroom usage patterns throughout the week.
-                </p>
                 
-                <div class="data-stats" id="data-stats">
-                    <div class="stat-box">
-                        <div class="stat-number" id="stat-courses">-</div>
-                        <div class="stat-label">Course Meetings</div>
+                <div class="dataset-content">
+                    <div class="dataset-description">
+                        <p class="section-text">
+                            Our analysis is based on the Fall 2025 course schedule data, which contains detailed information about every class meeting across campus. This dataset includes course codes, titles, meeting times, locations, and enrollment information.
+                        </p>
+                        <p class="section-text">
+                            Each record represents a single class meeting on a specific day, allowing us to analyze classroom usage patterns throughout the week.
+                        </p>
+                        <p class="section-text">
+                            <a href="https://serval.uvm.edu/~rgweb/batch/enrollment/enrollment_tab.html" target="_blank" rel="noopener noreferrer" style="color: #3498db; text-decoration: underline;">View the original dataset source →</a>
+                        </p>
+                        <p class="section-text" style="font-style: italic; color: #666;">
+                            Note: The statistics below reflect the dataset after cleaning and processing.
+                        </p>
+                        
+                        <div class="data-stats" id="data-stats">
+                            <div class="stat-box">
+                                <div class="stat-number" id="stat-courses">-</div>
+                                <div class="stat-label">Course Meetings</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="stat-buildings">-</div>
+                                <div class="stat-label">Buildings</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="stat-classrooms">-</div>
+                                <div class="stat-label">Classrooms</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" id="stat-courses-unique">-</div>
+                                <div class="stat-label">Unique Courses</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-number" id="stat-buildings">-</div>
-                        <div class="stat-label">Buildings</div>
+                    
+                    <div class="data-sample">
+                        <h3>Sample Data</h3>
+                        <table class="data-table" id="sample-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Subj</th>
+                                    <th>#</th>
+                                    <th>Title</th>
+                                    <th>Comp Numb</th>
+                                    <th>Sec</th>
+                                    <th>Ptrm</th>
+                                    <th>Lec Lab</th>
+                                    <th>Attr</th>
+                                    <th>Camp Code</th>
+                                    <th>Coll Code</th>
+                                    <th>Max Enrollment</th>
+                                    <th>Current Enrollment</th>
+                                    <th>True Max</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Days</th>
+                                    <th>Credits</th>
+                                    <th>Bldg</th>
+                                    <th>Room</th>
+                                    <th>GP Ind</th>
+                                    <th>Instructor</th>
+                                    <th>NetId</th>
+                                    <th>Email</th>
+                                    <th>Fees</th>
+                                    <th>XListings</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sample-data-body">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-number" id="stat-classrooms">-</div>
-                        <div class="stat-label">Classrooms</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-number" id="stat-courses-unique">-</div>
-                        <div class="stat-label">Unique Courses</div>
-                    </div>
-                </div>
-
-                <div class="data-sample">
-                    <h3 style="font-size: 1.3em; color: #2c3e50; margin-bottom: 15px;">Sample Data</h3>
-                    <table class="data-table" id="sample-data-table">
-                        <thead>
-                            <tr>
-                                <th>Course</th>
-                                <th>Title</th>
-                                <th>Building</th>
-                                <th>Room</th>
-                                <th>Day</th>
-                                <th>Time</th>
-                                <th>Enrollment</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sample-data-body">
-                            <!-- Will be populated by JavaScript -->
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </section>
+
+        <!-- Section 3: The Problem -->
+        <section class="section-problem" id="problem-section">
+            <div class="problem-panel">                
+                <div class="problem-content">
+                    <div class="problem-hypothesis">
+                        <h3>Potential Applications:</h3>
+                        <p class="section-text">
+                            We could build a tool for prospective students that gives them a clearer picture of what courses are actually offered from semester to semester, and even compare offerings to other universities. We could map out professors' movements from between buildings throughout the day, which sounds a little unusual at first, but could be useful for optimizing classroom assignments to reduce travel time between classes. We could also <b>analyze scheduling patterns to identify when campus is busiest versus when rooms sit empty, helping inform smarter time-slot allocation.</b>
+                        </p>
+                    </div>
+
+                    <div class="problem-experience">
+                        <h3>Identify a Problem:</h3>
+                        <p class="section-text">
+                            From my experience, courses often fill up fast before and during registration periods, and it can be a very stressful time for students. Classrooms can also feel cramped, and seem like it is impossible to find a seat. We will investigate how classroom spaces are utiliized across campus.
+                        </p>
+                    </div>
+
+                    <div class="problem-hypothesis">
+                        <h3>What we are going to look at:</h3>
+                        <ul class="investigation-list">
+                            <li>Utilization of classrooms across campus</li>
+                            <li>Allocation of used classrooms to see if we can optimize space to reduce overcrowding</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Data Cleaning & Preparation -->
+        <section class="section-cleaning" id="cleaning-section">
+            <div class="cleaning-panel">
+                <h2 class="section-title">Data Cleaning & Preparation</h2>
+                
+                <div class="cleaning-content">
+                    <p class="section-text">
+                        Before we can analyze classroom utilization, we need to clean and prepare the raw course schedule data.
+                    </p>
+
+                    <details class="cleaning-details">
+                        <summary class="cleaning-summary-toggle">View Data Cleaning Steps</summary>
+                        <div class="cleaning-steps-container">
+                            <div class="cleaning-step">
+                                <h4>✓ Filtered Invalid Entries</h4>
+                                <p>Removed courses with "TBA" (To Be Announced) times, as they don't have specific meeting times we can visualize.</p>
+                            </div>
+
+                            <div class="cleaning-step removed">
+                                <h4>✗ Removed Online Courses</h4>
+                                <p>Excluded courses with "ONLINE" building codes since they don't use physical classroom space.</p>
+                            </div>
+
+                            <div class="cleaning-step removed">
+                                <h4>✗ Removed Unassigned Rooms</h4>
+                                <p>Filtered out courses with "SEE NOTES" as the room assignment, as these don't have specific locations yet.</p>
+                            </div>
+
+                            <div class="cleaning-step removed">
+                                <h4>✗ Excluded Special Buildings</h4>
+                                <p>Removed special buildings such as the equine center, which are specialized facilities not part of general-purpose classroom analysis.</p>
+                            </div>
+
+                            <div class="cleaning-step">
+                                <h4>✓ Normalized Time Format</h4>
+                                <p>Converted all times to minutes since midnight (e.g., 8:00 AM = 480 minutes) for easier time-based filtering and comparisons.</p>
+                            </div>
+
+                            <div class="cleaning-step">
+                                <h4>✓ Exploded Multi-Day Courses</h4>
+                                <p>Split courses meeting on multiple days (e.g., "M W F") into separate records—one per day. This allows us to analyze each day independently.</p>
+                            </div>
+
+                            <div class="cleaning-step">
+                                <h4>✓ Standardized Course Codes</h4>
+                                <p>Combined subject codes and course numbers into standardized format (e.g., "CS 101") for consistent analysis.</p>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="cleaning-summary">
+                        <h3>Key Takeaways</h3>
+                        <p class="section-text">
+                            The cleaning process ensured we're working with a dataset that contains only courses with:
+                        </p>
+                        <ul class="investigation-list">
+                            <li>Specific meeting times and locations</li>
+                            <li>Physical classroom assignments</li>
+                            <li>Standardized, analyzable data formats</li>
+                        </ul>
+                        <div class="removed-items">
+                            <div class="removed-item">
+                                <strong>TBA Times</strong>
+                                <span>No specific meeting time</span>
+                            </div>
+                            <div class="removed-item">
+                                <strong>Online Courses</strong>
+                                <span>No physical location</span>
+                            </div>
+                            <div class="removed-item">
+                                <strong>Unassigned Rooms</strong>
+                                <span>No room assignment yet</span>
+                            </div>
+                            <div class="removed-item">
+                                <strong>Special Facilities</strong>
+                                <span>Not general-purpose classrooms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: First Visualization - Course-Based Capacity -->
+        <section class="section-viz" id="viz-section">
+            <!-- Overlay content (map shows through from background) -->
+            <div class="viz-overlay">
+                <div class="viz-content">
+                    <h2 class="viz-title">Course-Based Capacity</h2>
+                    <p class="viz-subtitle">
+                        This visualization shows classroom usage based on course enrollment limits. Classrooms display whether they're currently in use, with capacity determined by each section's enrollment cap.
+
+                    </p>
+                    <div class="viz-note">
+                        <p>
+                            <strong>Note:</strong> These capacities reflect pedagogical decisions like grading workload and course format, not necessarily the physical capacity of the room.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map controls -->
+            <div class="viz-controls">
+                <div id="day-selector-interactive" class="day-selector">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+                <div id="time-control-interactive" class="time-control">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+                <div class="viz-legend">
+                    <div class="viz-legend-label">Legend</div>
+                    <div class="legend-item">
+                        <div class="legend-color available"></div>
+                        <span>Available</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color in-use"></div>
+                        <span>In Use</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color over-capacity"></div>
+                        <span>Over Capacity</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interactive map container -->
+            <div id="map-container-interactive" class="map-container"></div>
+        </section>
+
+        <div class="viz-transition-message" style="max-width: 720px; margin: 48px auto 0 auto; text-align: center;">
+            <p style="font-size: 1.15em; color: #111; background: #fff; padding: 0.5em 1em; border-radius: 6px; display: inline-block;">
+                The visualization above gives us insight into overall classroom usage across campus, but <strong>does not help us understand how well individual classrooms are utilized</strong>
+            </p>
+        </div>
+
+        
+        <!-- Section 6: Second Visualization - Room-Based Capacity -->
+        <section class="section-viz" id="viz-section-capacity">
+            <!-- Overlay content (map shows through from background) -->
+            <div class="viz-overlay">
+                <div class="viz-content">
+                    <h2 class="viz-title">Room-Based Capacity</h2>
+                    <p class="viz-subtitle">
+                        For this visualization, we will compare the enrollment to the actual capacity of the classrooms they are held in. This will help us understand how well these spaces are actually utilized.
+                    </p>
+                    <div class="viz-note">
+                        <p>
+                            <strong>Note:</strong> Only ~70% of classrooms had their true capacities publically available. The rest are set by taking the max enrollment of a course held in that room, and are noted as such.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map controls -->
+            <div class="viz-controls">
+                <div id="day-selector-capacity" class="day-selector">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+                <div id="time-control-capacity" class="time-control">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+                <div class="viz-legend">
+                    <div class="viz-legend-label">Legend</div>
+                    <div class="legend-item">
+                        <div class="legend-color available"></div>
+                        <span>Available</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color in-use"></div>
+                        <span>In Use</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color over-capacity"></div>
+                        <span>Over Capacity</span>
+                    </div>
+                    <div class="legend-item" style="margin-top: 8px;">
+                        <div class="legend-color" style="border: 4px solid #000000; background: transparent;"></div>
+                        <span>At/Over Capacity</span>
+                    </div>
+                    <div class="legend-item" style="margin-top: 8px;">
+                        <div class="legend-color" style="border: 2px dashed #666; background: transparent;"></div>
+                        <span>Estimated Capacity*</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interactive map container -->
+            <div id="map-container-capacity" class="map-container"></div>
+        </section>
+
+        <div class="viz-transition-message" style="max-width: 800px; margin: 60px auto 40px auto; text-align: center; padding: 0 20px;">
+            <p style="font-size: 1.3em; color: #111; background: #fff; padding: 1.2em 1.5em; border-radius: 8px; display: inline-block; line-height: 1.6; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                Of the 2983 classes with true capacities we know of, only 22 classes exceed their physical room capacity, <strong>10x more classes (221) exceed their enrollment caps</strong>
+            </p>
+            <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <a href="capacity-full.html" target="_blank" class="map-button" style="display: inline-block; padding: 14px 32px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; font-size: 1.1em; font-weight: 600; transition: background 0.3s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                    View Map in New Window
+                </a>
+                <a href="analytics.html" class="analytics-button" style="display: inline-block; padding: 14px 32px; background: #2c3e50; color: white; text-decoration: none; border-radius: 6px; font-size: 1.1em; font-weight: 600; transition: background 0.3s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                    Continue with Analysis →
+                </a>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/config.js"></script>
+    <script src="js/building-coordinates.js"></script>
     <script src="js/app-story.js"></script>
 </body>
 </html>
