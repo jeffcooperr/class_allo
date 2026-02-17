@@ -488,13 +488,19 @@
             letter-spacing: 0.5px;
         }
 
-        /* Disable all map interactions */
-        .leaflet-container {
+        /* Disable all map interactions for background map only */
+        #map-container .leaflet-container {
             cursor: default !important;
         }
 
-        .leaflet-control-container {
+        #map-container .leaflet-control-container {
             display: none !important;
+        }
+
+        /* Enable zoom controls for interactive maps */
+        #map-container-interactive .leaflet-control-zoom,
+        #map-container-capacity .leaflet-control-zoom {
+            display: block !important;
         }
 
         /* Responsive layout for smaller screens */
@@ -638,7 +644,7 @@
             padding: 15px 30px;
             z-index: 5;
             pointer-events: auto;
-            background: rgba(0, 0, 0, 0.75);
+            background: #2c2b2b;
             backdrop-filter: blur(10px);
             display: flex;
             gap: 30px;
@@ -692,7 +698,7 @@
         .viz-legend {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 3px;
             margin-left: auto;
             flex-shrink: 0;
         }
@@ -701,7 +707,7 @@
             color: white;
             font-size: 0.85em;
             font-weight: 600;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .legend-item {
@@ -1261,11 +1267,11 @@
                         <div class="legend-color over-capacity"></div>
                         <span>Over Capacity</span>
                     </div>
-                    <div class="legend-item" style="margin-top: 8px;">
+                    <div class="legend-item" style="margin-top: 3px;">
                         <div class="legend-color" style="border: 4px solid #000000; background: transparent;"></div>
                         <span>At/Over Capacity</span>
                     </div>
-                    <div class="legend-item" style="margin-top: 8px;">
+                    <div class="legend-item" style="margin-top: 3px;">
                         <div class="legend-color" style="border: 2px dashed #666; background: transparent;"></div>
                         <span>Estimated Capacity*</span>
                     </div>

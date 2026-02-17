@@ -3,35 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>University Course Schedule Visualization</title>
+    <title>University Course Schedule - List View</title>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Enhanced styles for index.html */
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .page-wrapper {
+            background: rgba(255, 255, 255, 0.98);
+            min-height: 100vh;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px 40px;
+            margin-bottom: 0;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        header h1 {
+            color: white;
+            font-size: 2.8em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.15em;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+
+        .view-switcher {
+            display: inline-flex;
+            gap: 12px;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .view-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .view-link:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .view-link.active {
+            background: rgba(255, 255, 255, 0.3);
+            font-weight: 600;
+        }
+
+        .intro-text {
+            max-width: 800px;
+            margin: 0 auto 30px;
+            padding: 0 40px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1em;
+            line-height: 1.6;
+        }
+
+        .controls {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .controls-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .control-label {
+            color: #2c3e50;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .visualization {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px;
+            background: #f8f9fa;
+            min-height: calc(100vh - 400px);
+        }
+
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 80px 20px;
+            font-size: 1.2em;
+        }
+
+        .stats-bar {
+            background: white;
+            padding: 20px 40px;
+            border-bottom: 1px solid #e0e0e0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .stats-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 40px 20px 30px;
+            }
+
+            header h1 {
+                font-size: 2em;
+            }
+
+            .controls {
+                padding: 20px;
+            }
+
+            .visualization {
+                padding: 20px;
+            }
+
+            .intro-text {
+                padding: 0 20px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>University Course Schedule</h1>
-            <p class="subtitle">Visualize classes by building and time</p>
-        </header>
+    <div class="page-wrapper">
+        <div class="container">
+            <header>
+                <h1>University Course Schedule</h1>
+                <p class="subtitle">Explore classes organized by building and time</p>
+                <p class="intro-text">
+                    This list view provides a detailed breakdown of all courses by building. 
+                    Use the controls below to filter by day and time, or switch to the map view for a spatial perspective.
+                </p>
+                <div class="view-switcher">
+                    <a href="index.html" class="view-link active">List View</a>
+                    <a href="map.html" class="view-link">Map View</a>
+                    <a href="story.html" class="view-link">Story View</a>
+                </div>
+            </header>
 
-        <div class="controls">
-            <!-- Day selector will go here -->
-            <div id="day-selector" class="day-selector">
-                <!-- Will be populated by JavaScript -->
+            <div class="stats-bar">
+                <div class="stats-content">
+                    <div class="stat-item">
+                        <span>Current View:</span>
+                        <span class="stat-value" id="current-view">Loading...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Buildings:</span>
+                        <span class="stat-value" id="building-count">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Courses:</span>
+                        <span class="stat-value" id="course-count">-</span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Time slider will go here -->
-            <div id="time-control" class="time-control">
-                <!-- Will be populated by JavaScript -->
-            </div>
-        </div>
+            <div class="controls">
+                <div class="controls-wrapper">
+                    <!-- Day selector will go here -->
+                    <div id="day-selector" class="day-selector control-group">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
 
-        <div id="visualization" class="visualization">
-            <!-- Building containers will be rendered here -->
-            <p class="loading">Loading course data...</p>
+                    <!-- Time slider will go here -->
+                    <div id="time-control" class="time-control control-group">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="visualization" class="visualization">
+                <!-- Building containers will be rendered here -->
+                <p class="loading">Loading course data...</p>
+            </div>
         </div>
     </div>
 
     <script src="js/app.js"></script>
+    <script>
+        // Update stats when visualization renders
+        document.addEventListener('DOMContentLoaded', () => {
+            function updateStats() {
+                const buildings = document.querySelectorAll('.building-container');
+                const courses = document.querySelectorAll('.course-card');
+                const activeDayButton = document.querySelector('.day-button.active');
+                const timeDisplay = document.querySelector('#time-display');
+                
+                const selectedDay = activeDayButton ? activeDayButton.textContent.split(' ')[0] : 'Monday';
+                const selectedTime = timeDisplay ? timeDisplay.textContent : '8:00 AM';
+                
+                const buildingCountEl = document.getElementById('building-count');
+                const courseCountEl = document.getElementById('course-count');
+                const currentViewEl = document.getElementById('current-view');
+                
+                if (buildingCountEl) buildingCountEl.textContent = buildings.length;
+                if (courseCountEl) courseCountEl.textContent = courses.length;
+                if (currentViewEl) currentViewEl.textContent = `${selectedDay} at ${selectedTime}`;
+            }
+            
+            // Watch for changes in the visualization
+            const observer = new MutationObserver(() => {
+                updateStats();
+            });
+            
+            const visualizationEl = document.getElementById('visualization');
+            if (visualizationEl) {
+                observer.observe(visualizationEl, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            
+            // Also update when controls change
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('day-button') || e.target.id === 'time-slider') {
+                    setTimeout(updateStats, 100);
+                }
+            });
+            
+            // Initial update after a short delay to let the app initialize
+            setTimeout(updateStats, 500);
+        });
+    </script>
 </body>
 </html>
 

@@ -5,106 +5,145 @@
  * through different times of day. The map is non-interactive and has reduced opacity.
  */
 
-// Global state
+// ============================================================================
+// Constants
+// ============================================================================
+
+const CONSTANTS = {
+    BASE_ICON_SIZE: 10,
+    BASE_ZOOM: 17,
+    MAX_ZOOM: 19,
+    MIN_ZOOM: 14,
+    MINUTES_PER_HOUR: 60,
+    MINUTES_PER_DAY: 1440,
+    TIME_STEP: 15,
+    TIME_CYCLE_INTERVAL: 1000, // Change time every 1 second
+    TIME_CYCLE_STEP: 30, // Step by 30 minutes each cycle
+    MIN_TIME: 480, // 8:00 AM
+    MAX_TIME: 1020, // 5:00 PM (17:00)
+    DEFAULT_DAY: 'M',
+    DEFAULT_TIME: 480, // 8:00 AM
+    INTERACTIVE_DEFAULT_DAY: 'W',
+    INTERACTIVE_DEFAULT_TIME: 720, // 12:00 PM
+    CAPACITY_DEFAULT_DAY: 'W',
+    CAPACITY_DEFAULT_TIME: 720, // 12:00 PM
+    DEFAULT_GRID_COLS: 3,
+    DEFAULT_PADDING: 0.3,
+    BACKGROUND_MAP_ZOOM: 18,
+    INTERACTIVE_MAP_ZOOM: 19,
+    CAPACITY_MAP_ZOOM: 19
+};
+
+const MAP_CORNERS = {
+    nw: [44.4788666, -73.1991804],
+    ne: [44.4774707, -73.1990634],
+    se: [44.4775079, -73.1971789],
+    sw: [44.4789095, -73.1972329]
+};
+
+const CAMPUS_CENTER = {
+    lat: 44.47798293916087,
+    lng: -73.19652807301023
+};
+
+const DAYS = [
+    { code: 'M', label: 'Mon' },
+    { code: 'T', label: 'Tue' },
+    { code: 'W', label: 'Wed' },
+    { code: 'R', label: 'Thu' },
+    { code: 'F', label: 'Fri' }
+];
+
+const DAY_NAMES = {
+    'M': 'Monday',
+    'T': 'Tuesday',
+    'W': 'Wednesday',
+    'R': 'Thursday',
+    'F': 'Friday'
+};
+
+// ============================================================================
+// Global State
+// ============================================================================
+
 let courseData = [];
-let selectedDay = 'M'; // Fixed to Monday for consistency
-let selectedTime = 480; // Start at 8:00 AM
+let selectedDay = CONSTANTS.DEFAULT_DAY;
+let selectedTime = CONSTANTS.DEFAULT_TIME;
 let map = null;
-let interactiveMap = null; // Interactive map at bottom of section 5
-let capacityMap = null; // Interactive map for capacity section
+let interactiveMap = null;
+let capacityMap = null;
 let classroomMarkers = [];
 let buildingPolygons = [];
-let interactiveClassroomMarkers = []; // Markers for interactive map
-let interactiveBuildingPolygons = []; // Polygons for interactive map
-let capacityClassroomMarkers = []; // Markers for capacity map
-let capacityBuildingPolygons = []; // Polygons for capacity map
-let interactiveSelectedDay = 'W'; // Day for interactive map (Wednesday)
-let interactiveSelectedTime = 720; // Time for interactive map (12:00 PM)
-let capacitySelectedDay = 'W'; // Day for capacity map
-let capacitySelectedTime = 720; // Time for capacity map
-const BASE_ICON_SIZE = 10;
-let minTime = 0; // Minimum class start time (will be calculated from data)
-let maxTime = 1440; // Maximum class end time (will be calculated from data)
-
-// Time cycling configuration
-const TIME_CYCLE_INTERVAL = 1000; // Change time every 1 second
-const TIME_STEP = 30; // Step by 30 minutes each cycle
-const MIN_TIME = 480; // 8:00 AM
-const MAX_TIME = 1020; // 5:00 PM (17:00)
+let interactiveClassroomMarkers = [];
+let interactiveBuildingPolygons = [];
+let capacityClassroomMarkers = [];
+let capacityBuildingPolygons = [];
+let interactiveSelectedDay = CONSTANTS.INTERACTIVE_DEFAULT_DAY;
+let interactiveSelectedTime = CONSTANTS.INTERACTIVE_DEFAULT_TIME;
+let capacitySelectedDay = CONSTANTS.CAPACITY_DEFAULT_DAY;
+let capacitySelectedTime = CONSTANTS.CAPACITY_DEFAULT_TIME;
+let minTime = 0;
+let maxTime = CONSTANTS.MINUTES_PER_DAY;
 let timeCycleInterval = null;
 let isInVizSection = false;
 
 // Building coordinates are loaded from js/building-coordinates.js
 // (loaded via script tag in HTML before this file)
 
+// ============================================================================
+// Initialization
+// ============================================================================
+
 /**
  * Initialize the application
  */
 async function init() {
     try {
-        // Load course data
-        const response = await fetch('data/2025_fall_cleaned.json');
-        if (!response.ok) {
-            throw new Error(`Failed to load data: ${response.statusText}`);
-        }
-        courseData = await response.json();
-        console.log(`Loaded ${courseData.length} course meeting records`);
-
-        // Initialize background map
-        initMap();
-
-        // Calculate min and max times from course data
+        await loadCourseData();
         calculateTimeRange();
 
-        // Initialize interactive map
+        initMap();
         initInteractiveMap();
-
-        // Initialize capacity map
         initCapacityMap();
 
-        // Setup interactive map controls
         setupInteractiveDaySelector();
         setupInteractiveTimeSlider();
-
-        // Setup capacity map controls
         setupCapacityDaySelector();
         setupCapacityTimeSlider();
 
-        // Render initial visualization
         renderVisualization();
-        
-        // Render initial interactive map
         renderInteractiveVisualization();
-
-        // Render initial capacity map
         renderCapacityVisualization();
 
-        // Start time cycling
         startTimeCycle();
-
-        // Populate dataset section
         await populateDatasetSection();
-
-        // Populate insights section
         populateInsightsSection();
-
-        // Setup scroll observers
         setupScrollObservers();
-
     } catch (error) {
         console.error('Error initializing app:', error);
     }
 }
 
 /**
- * Initialize the Leaflet map (non-interactive)
+ * Load course data from JSON file
+ */
+async function loadCourseData() {
+    const response = await fetch('data/2025_fall_cleaned.json');
+    if (!response.ok) {
+        throw new Error(`Failed to load data: ${response.statusText}`);
+    }
+    courseData = await response.json();
+    console.log(`Loaded ${courseData.length} course meeting records`);
+}
+
+// ============================================================================
+// Map Initialization
+// ============================================================================
+
+/**
+ * Initialize the Leaflet map (non-interactive background)
  */
 function initMap() {
-    const campusCenterLat = 44.47798293916087;
-    const campusCenterLng = -73.19652807301023;
-    const initialZoom = 18; // Zoomed in one more level
-
-    // Initialize the map
     map = L.map('map-container', {
         zoomControl: false,
         dragging: false,
@@ -113,26 +152,55 @@ function initMap() {
         scrollWheelZoom: false,
         boxZoom: false,
         keyboard: false
-    }).setView([campusCenterLat, campusCenterLng], initialZoom);
+    }).setView([CAMPUS_CENTER.lat, CAMPUS_CENTER.lng], CONSTANTS.BACKGROUND_MAP_ZOOM);
 
-    // Add Jawg.Dark tiles
-    // Note: Jawg requires an API key. Get one free at https://www.jawg.io/
-    // Replace 'YOUR_JAWG_API_KEY' below with your actual API key
+    addDarkTileLayer(map);
+    console.log('Map initialized (non-interactive)');
+}
+
+/**
+ * Add dark theme tile layer to a map
+ */
+function addDarkTileLayer(mapInstance) {
     L.tileLayer(`https://tile.jawg.io/jawg-dark/{z}/{x}/{y}.png?access-token=${JAWG_API_KEY}`, {
         attribution: '© <a href="https://jawg.io">Jawg</a>',
         maxZoom: 22
-    }).addTo(map);
-
-    console.log('Map initialized (non-interactive)');
+    }).addTo(mapInstance);
 }
+
+/**
+ * Calculate map center from corner coordinates
+ */
+function calculateMapCenter() {
+    const allLats = [MAP_CORNERS.nw[0], MAP_CORNERS.ne[0], MAP_CORNERS.se[0], MAP_CORNERS.sw[0]];
+    const allLngs = [MAP_CORNERS.nw[1], MAP_CORNERS.ne[1], MAP_CORNERS.se[1], MAP_CORNERS.sw[1]];
+    
+    const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
+    const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
+    
+    return [centerLat, centerLng];
+}
+
+/**
+ * Add OpenStreetMap tile layer to a map
+ */
+function addOSMTileLayer(mapInstance) {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: CONSTANTS.MAX_ZOOM
+    }).addTo(mapInstance);
+}
+
+// ============================================================================
+// Time Utilities
+// ============================================================================
 
 /**
  * Calculate the time range from course data
  */
 function calculateTimeRange() {
     if (courseData.length === 0) {
-        minTime = 0;
-        maxTime = 1440;
+        resetTimeRange();
         return;
     }
 
@@ -142,156 +210,206 @@ function calculateTimeRange() {
     if (startTimes.length > 0 && endTimes.length > 0) {
         minTime = Math.min(...startTimes);
         maxTime = Math.max(...endTimes);
-        // Round down minTime and round up maxTime to nearest 15 minutes
-        minTime = Math.floor(minTime / 15) * 15;
-        maxTime = Math.ceil(maxTime / 15) * 15;
-        // Ensure selectedTime is within range
-        if (interactiveSelectedTime < minTime) interactiveSelectedTime = minTime;
-        if (interactiveSelectedTime > maxTime) interactiveSelectedTime = maxTime;
+        minTime = roundDownToNearestStep(minTime);
+        maxTime = roundUpToNearestStep(maxTime);
+        clampInteractiveSelectedTime();
     } else {
-        minTime = 0;
-        maxTime = 1440;
+        resetTimeRange();
     }
+}
+
+/**
+ * Reset time range to defaults
+ */
+function resetTimeRange() {
+        minTime = 0;
+    maxTime = CONSTANTS.MINUTES_PER_DAY;
+}
+
+/**
+ * Round down to nearest time step
+ */
+function roundDownToNearestStep(time) {
+    return Math.floor(time / CONSTANTS.TIME_STEP) * CONSTANTS.TIME_STEP;
+}
+
+/**
+ * Round up to nearest time step
+ */
+function roundUpToNearestStep(time) {
+    return Math.ceil(time / CONSTANTS.TIME_STEP) * CONSTANTS.TIME_STEP;
+}
+
+/**
+ * Ensure interactive selected time is within valid range
+ */
+function clampInteractiveSelectedTime() {
+    if (interactiveSelectedTime < minTime) interactiveSelectedTime = minTime;
+    if (interactiveSelectedTime > maxTime) interactiveSelectedTime = maxTime;
 }
 
 /**
  * Initialize the interactive Leaflet map at bottom of section 5
  */
 function initInteractiveMap() {
-    // Define the four corner points (same as map01.html)
-    const nw = [44.4788666, -73.1991804];
-    const ne = [44.4774707, -73.1990634];
-    const se = [44.4775079, -73.1971789];
-    const sw = [44.4789095, -73.1972329];
+    const center = calculateMapCenter();
     
-    // Calculate center point from the corner points
-    const allLats = [nw[0], ne[0], se[0], sw[0]];
-    const allLngs = [nw[1], ne[1], se[1], sw[1]];
-    
-    const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
-    const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
-    const initialZoom = 19;
-
-    // Initialize the interactive map
     interactiveMap = L.map('map-container-interactive', {
-        minZoom: 14  // Prevent zooming out beyond level 14
+        minZoom: CONSTANTS.MIN_ZOOM,
+        zoomControl: true
     });
 
-    // Set the initial view to center with zoom level 19
-    interactiveMap.setView([centerLat, centerLng], initialZoom);
-
-    // Add OpenStreetMap tiles (like in map01.html)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(interactiveMap);
-
-    // Add zoom event listener to update marker sizes and room number visibility
-    interactiveMap.on('zoomend', () => {
-        renderInteractiveVisualization();
-    });
+    interactiveMap.setView(center, CONSTANTS.INTERACTIVE_MAP_ZOOM);
+    addOSMTileLayer(interactiveMap);
+    setupMapZoomListener(interactiveMap, renderInteractiveVisualization);
 
     console.log('Interactive map initialized');
 }
+
+// ============================================================================
+// UI Controls Setup
+// ============================================================================
 
 /**
  * Set up the day selector buttons for interactive map
  */
 function setupInteractiveDaySelector() {
-    const days = [
-        { code: 'M', label: 'Mon' },
-        { code: 'T', label: 'Tue' },
-        { code: 'W', label: 'Wed' },
-        { code: 'R', label: 'Thu' },
-        { code: 'F', label: 'Fri' }
-    ];
+    setupDaySelector('day-selector-interactive', interactiveSelectedDay, (dayCode) => {
+        interactiveSelectedDay = dayCode;
+        renderInteractiveVisualization();
+    });
+}
 
-    const container = document.getElementById('day-selector-interactive');
+/**
+ * Generic day selector setup
+ */
+function setupDaySelector(containerId, selectedDay, onDayChange) {
+    const container = document.getElementById(containerId);
     if (!container) return;
     
     container.innerHTML = '<label class="control-label">Day:</label><div class="day-buttons"></div>';
     const buttonsContainer = container.querySelector('.day-buttons');
 
-    days.forEach(day => {
+    DAYS.forEach(day => {
+        const button = createDayButton(day, selectedDay, buttonsContainer, onDayChange);
+        buttonsContainer.appendChild(button);
+    });
+}
+
+/**
+ * Create a day selector button
+ */
+function createDayButton(day, selectedDay, buttonsContainer, onDayChange) {
         const button = document.createElement('button');
         button.textContent = day.label;
         button.className = 'day-button';
         button.dataset.day = day.code;
 
-        if (day.code === interactiveSelectedDay) {
+    if (day.code === selectedDay) {
             button.classList.add('active');
         }
 
         button.addEventListener('click', () => {
-            interactiveSelectedDay = day.code;
-            // Update button states
-            buttonsContainer.querySelectorAll('.day-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            button.classList.add('active');
-
-            // Re-render interactive visualization
-            renderInteractiveVisualization();
-        });
-
-        buttonsContainer.appendChild(button);
+        updateDayButtonStates(buttonsContainer, button);
+        onDayChange(day.code);
     });
+
+    return button;
+}
+
+/**
+ * Update day button active states
+ */
+function updateDayButtonStates(buttonsContainer, activeButton) {
+    buttonsContainer.querySelectorAll('.day-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    activeButton.classList.add('active');
 }
 
 /**
  * Set up the time slider for interactive map
  */
 function setupInteractiveTimeSlider() {
-    const container = document.getElementById('time-control-interactive');
+    setupTimeSlider(
+        'time-control-interactive',
+        'time-slider-interactive',
+        'time-display-interactive',
+        interactiveSelectedTime,
+        (newTime) => {
+            interactiveSelectedTime = newTime;
+            renderInteractiveVisualization();
+        }
+    );
+}
+
+/**
+ * Generic time slider setup
+ */
+function setupTimeSlider(containerId, sliderId, displayId, initialTime, onTimeChange) {
+    const container = document.getElementById(containerId);
     if (!container) return;
     
-    container.innerHTML = `
+    container.innerHTML = createTimeSliderHTML(sliderId, displayId, initialTime);
+    attachTimeSliderListeners(sliderId, displayId, onTimeChange);
+}
+
+/**
+ * Create HTML for time slider
+ */
+function createTimeSliderHTML(sliderId, displayId, initialTime) {
+    return `
         <label class="control-label">Time:</label>
         <div class="time-slider-container">
-            <input type="range" id="time-slider-interactive" min="${minTime}" max="${maxTime}" value="${interactiveSelectedTime}" step="15">
+            <input type="range" id="${sliderId}" min="${minTime}" max="${maxTime}" value="${initialTime}" step="${CONSTANTS.TIME_STEP}">
             <div class="time-display">
-                <span id="time-display-interactive">${formatTime(interactiveSelectedTime)}</span>
+                <span id="${displayId}">${formatTime(initialTime)}</span>
             </div>
         </div>
     `;
+}
 
-    const slider = document.getElementById('time-slider-interactive');
-    const display = document.getElementById('time-display-interactive');
+/**
+ * Attach event listeners to time slider
+ */
+function attachTimeSliderListeners(sliderId, displayId, onTimeChange) {
+    const slider = document.getElementById(sliderId);
+    const display = document.getElementById(displayId);
 
     if (slider && display) {
         slider.addEventListener('input', (e) => {
-            interactiveSelectedTime = parseInt(e.target.value);
-            display.textContent = formatTime(interactiveSelectedTime);
-            renderInteractiveVisualization();
+            const newTime = parseInt(e.target.value);
+            display.textContent = formatTime(newTime);
+            onTimeChange(newTime);
         });
     }
 }
+
+// ============================================================================
+// Time Cycling
+// ============================================================================
 
 /**
  * Start automatic time cycling
  */
 function startTimeCycle() {
-    // Clear any existing interval
     if (timeCycleInterval) {
         clearInterval(timeCycleInterval);
     }
     
     timeCycleInterval = setInterval(() => {
-        // Don't cycle time if we're in a visualization section
         if (isInVizSection) {
             return;
         }
         
-        selectedTime += TIME_STEP;
+        selectedTime += CONSTANTS.TIME_CYCLE_STEP;
         
-        // Loop back to start time when we reach the end
-        if (selectedTime > MAX_TIME) {
-            selectedTime = MIN_TIME;
+        if (selectedTime > CONSTANTS.MAX_TIME) {
+            selectedTime = CONSTANTS.MIN_TIME;
         }
         
-        // Re-render visualization with new time
         renderVisualization();
-    }, TIME_CYCLE_INTERVAL);
+    }, CONSTANTS.TIME_CYCLE_INTERVAL);
 }
 
 /**
@@ -308,46 +426,70 @@ function pauseTimeCycle() {
  * Format minutes since midnight to readable time string
  */
 function formatTime(minutes) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const hours = Math.floor(minutes / CONSTANTS.MINUTES_PER_HOUR);
+    const mins = minutes % CONSTANTS.MINUTES_PER_HOUR;
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
     const displayMins = mins.toString().padStart(2, '0');
     return `${displayHours}:${displayMins} ${period}`;
 }
 
+// ============================================================================
+// Data Filtering and Processing
+// ============================================================================
+
 /**
  * Filter course data based on selected day and time
  */
 function filterCourses() {
-    return courseData.filter(course => {
-        if (course.day !== selectedDay) {
-            return false;
-        }
-        return selectedTime >= course.start_minutes && selectedTime <= course.end_minutes;
-    });
+    return filterCoursesByDayAndTime(selectedDay, selectedTime);
 }
 
 /**
  * Filter course data for interactive map based on selected day and time
  */
 function filterInteractiveCourses() {
+    return filterCoursesByDayAndTime(interactiveSelectedDay, interactiveSelectedTime);
+}
+
+/**
+ * Generic course filter by day and time
+ */
+function filterCoursesByDayAndTime(day, time) {
     return courseData.filter(course => {
-        if (course.day !== interactiveSelectedDay) {
-            return false;
-        }
-        return interactiveSelectedTime >= course.start_minutes && interactiveSelectedTime <= course.end_minutes;
+        return matchesDay(course, day) && matchesTime(course, time);
     });
+}
+
+/**
+ * Check if course matches day
+ */
+function matchesDay(course, day) {
+    return course.day === day;
+}
+
+/**
+ * Check if course matches time
+ */
+function matchesTime(course, time) {
+    return time >= course.start_minutes && time <= course.end_minutes;
 }
 
 /**
  * Get all unique classrooms grouped by building
  */
 function getAllClassroomsByBuilding() {
+    const classrooms = collectClassroomsByBuilding();
+    return sortClassroomsInBuildings(classrooms);
+}
+
+/**
+ * Collect all classrooms grouped by building
+ */
+function collectClassroomsByBuilding() {
     const classrooms = {};
     courseData.forEach(course => {
-        const building = course.building;
-        const room = course.room;
+        const { building, room } = course;
         if (building && room) {
             if (!classrooms[building]) {
                 classrooms[building] = new Set();
@@ -355,7 +497,13 @@ function getAllClassroomsByBuilding() {
             classrooms[building].add(room);
         }
     });
+    return classrooms;
+}
 
+/**
+ * Sort classrooms in each building
+ */
+function sortClassroomsInBuildings(classrooms) {
     const result = {};
     Object.keys(classrooms).forEach(building => {
         result[building] = Array.from(classrooms[building]).sort((a, b) => {
@@ -371,8 +519,7 @@ function getAllClassroomsByBuilding() {
 function getInUseClassrooms(activeCourses) {
     const inUse = {};
     activeCourses.forEach(course => {
-        const building = course.building;
-        const room = course.room;
+        const { building, room } = course;
         if (building && room) {
             if (!inUse[building]) {
                 inUse[building] = new Set();
@@ -391,6 +538,10 @@ function getCoursesForRoom(activeCourses, building, room) {
         course.building === building && course.room === room
     );
 }
+
+// ============================================================================
+// Building and Position Utilities
+// ============================================================================
 
 /**
  * Calculate bounding box from building corners
@@ -416,41 +567,53 @@ function getBuildingRotation(buildingData) {
 /**
  * Calculate icon size based on current zoom level
  */
-function getIconSize() {
-    if (!map) return BASE_ICON_SIZE;
-    const currentZoom = map.getZoom();
-    const baseZoom = 17;
-    const scaleFactor = Math.pow(2, currentZoom - baseZoom);
-    return BASE_ICON_SIZE * scaleFactor;
+function getIconSize(mapInstance = null) {
+    const mapToUse = mapInstance || map;
+    if (!mapToUse) return CONSTANTS.BASE_ICON_SIZE;
+    const currentZoom = mapToUse.getZoom();
+    const scaleFactor = Math.pow(2, currentZoom - CONSTANTS.BASE_ZOOM);
+    return CONSTANTS.BASE_ICON_SIZE * scaleFactor;
 }
 
 /**
  * Calculate icon size for interactive map based on current zoom level
  */
 function getInteractiveIconSize(mapInstance = null) {
-    const mapToUse = mapInstance || interactiveMap;
-    if (!mapToUse) return BASE_ICON_SIZE;
-    const currentZoom = mapToUse.getZoom();
-    const baseZoom = 17;
-    const scaleFactor = Math.pow(2, currentZoom - baseZoom);
-    return BASE_ICON_SIZE * scaleFactor;
+    return getIconSize(mapInstance || interactiveMap);
 }
 
 /**
  * Calculate position for a classroom box within building bounds
  */
 function calculateClassroomPosition(bounds, corners, index, totalRooms, buildingConfig) {
-    const cols = buildingConfig?.gridCols ?? 3;
-    const padding = buildingConfig?.padding ?? 0.3;
+    const cols = buildingConfig?.gridCols ?? CONSTANTS.DEFAULT_GRID_COLS;
+    const padding = buildingConfig?.padding ?? CONSTANTS.DEFAULT_PADDING;
     const rows = Math.ceil(totalRooms / cols);
 
-    const row = Math.floor(index / cols);
-    const col = index % cols;
+    const { row, col } = calculateGridPosition(index, cols);
+    const { width, height } = calculateBuildingDimensions(corners);
+    const { usableWidth, usableHeight } = calculateUsableDimensions(width, height, padding);
+    const { localX, localY } = calculateLocalPosition(col, row, cols, rows, usableWidth, usableHeight);
+    const { paddedX, paddedY } = applyPadding(localX, localY, width, height, padding);
+    
+    return calculateWorldPosition(corners, width, height, paddedX, paddedY);
+}
 
-    const nw = corners[0];
-    const ne = corners[1];
-    const se = corners[2];
-    const sw = corners[3];
+/**
+ * Calculate grid row and column from index
+ */
+function calculateGridPosition(index, cols) {
+    return {
+        row: Math.floor(index / cols),
+        col: index % cols
+    };
+}
+
+/**
+ * Calculate building width and height from corners
+ */
+function calculateBuildingDimensions(corners) {
+    const [nw, ne, se, sw] = corners;
 
     const width = Math.sqrt(
         Math.pow(ne[0] - nw[0], 2) + Math.pow(ne[1] - nw[1], 2)
@@ -459,14 +622,44 @@ function calculateClassroomPosition(bounds, corners, index, totalRooms, building
         Math.pow(sw[0] - nw[0], 2) + Math.pow(sw[1] - nw[1], 2)
     );
 
-    const usableWidth = width * (1 - padding);
-    const usableHeight = height * (1 - padding);
+    return { width, height };
+}
 
-    const localX = (col / Math.max(1, cols - 1)) * usableWidth;
-    const localY = (row / Math.max(1, rows - 1)) * usableHeight;
+/**
+ * Calculate usable dimensions after padding
+ */
+function calculateUsableDimensions(width, height, padding) {
+    return {
+        usableWidth: width * (1 - padding),
+        usableHeight: height * (1 - padding)
+    };
+}
 
-    const paddedX = localX + (width * padding / 2);
-    const paddedY = localY + (height * padding / 2);
+/**
+ * Calculate local position within grid
+ */
+function calculateLocalPosition(col, row, cols, rows, usableWidth, usableHeight) {
+    return {
+        localX: (col / Math.max(1, cols - 1)) * usableWidth,
+        localY: (row / Math.max(1, rows - 1)) * usableHeight
+    };
+}
+
+/**
+ * Apply padding to local position
+ */
+function applyPadding(localX, localY, width, height, padding) {
+    return {
+        paddedX: localX + (width * padding / 2),
+        paddedY: localY + (height * padding / 2)
+    };
+}
+
+/**
+ * Calculate world coordinates from local position
+ */
+function calculateWorldPosition(corners, width, height, paddedX, paddedY) {
+    const [nw, ne, se, sw] = corners;
 
     const widthVec = [
         (ne[0] - nw[0]) / width,
@@ -483,6 +676,84 @@ function calculateClassroomPosition(bounds, corners, index, totalRooms, building
     return { lat, lng };
 }
 
+// ============================================================================
+// Shared Rendering Utilities
+// ============================================================================
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Build tooltip content for courses in a room (simple version without capacity notes)
+ */
+function buildSimpleTooltipContent(coursesInRoom) {
+    if (coursesInRoom.length === 0) {
+        return 'Available';
+    }
+
+    return coursesInRoom.map(course => {
+                    const startTime = formatTime(course.start_minutes);
+                    const endTime = formatTime(course.end_minutes);
+        const courseCode = escapeHtml(course.course || '');
+        const courseTitle = escapeHtml(course.title || '');
+                    return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}`;
+                }).join('<br><br>');
+}
+
+/**
+ * Build tooltip content with capacity notes
+ */
+function buildTooltipContentWithCapacity(coursesInRoom) {
+    if (coursesInRoom.length === 0) {
+        return 'Available';
+    }
+
+    return coursesInRoom.map(course => {
+        const startTime = formatTime(course.start_minutes);
+        const endTime = formatTime(course.end_minutes);
+        const courseCode = escapeHtml(course.course || '');
+        const courseTitle = escapeHtml(course.title || '');
+        const capacityNote = course.capacity_from_csv === false 
+            ? '<br><em style="font-size: 0.9em; color: #666;">(Estimated capacity)</em>' 
+            : '';
+        return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}${capacityNote}`;
+    }).join('<br><br>');
+}
+
+/**
+ * Create Leaflet div icon for classroom marker
+ */
+function createClassroomIcon(classroomHtml, mapInstance) {
+    const iconSize = getIconSize(mapInstance);
+            const halfSize = iconSize / 2;
+    
+    return L.divIcon({
+                className: 'classroom-marker',
+                html: classroomHtml,
+                iconSize: [iconSize, iconSize],
+                iconAnchor: [halfSize, halfSize]
+            });
+}
+
+/**
+ * Check if room numbers should be displayed (at max zoom)
+ */
+function shouldShowRoomNumber(mapInstance) {
+    return mapInstance.getZoom() === CONSTANTS.MAX_ZOOM;
+}
+
+// ============================================================================
+// Visualization Rendering
+// ============================================================================
+
 /**
  * Render the main visualization on the map
  */
@@ -492,102 +763,240 @@ function renderVisualization() {
         return;
     }
 
-    // Clear existing markers and polygons
-    classroomMarkers.forEach(marker => map.removeLayer(marker));
-    classroomMarkers = [];
-    buildingPolygons.forEach(polygon => map.removeLayer(polygon));
-    buildingPolygons = [];
-
-    // Filter courses based on current selections
+    clearVisualization(map, classroomMarkers, buildingPolygons);
+    
     const filteredCourses = filterCourses();
-
-    // Get all classrooms by building
     const allClassrooms = getAllClassroomsByBuilding();
-
-    // Get which classrooms are currently in use
     const inUseClassrooms = getInUseClassrooms(filteredCourses);
 
-    // Render buildings
+    renderBuildings(map, allClassrooms, inUseClassrooms, filteredCourses, {
+        markers: classroomMarkers,
+        polygons: buildingPolygons,
+        showRoomNumbers: false,
+        interactive: false
+    });
+}
+
+/**
+ * Clear existing markers and polygons from a map
+ */
+function clearVisualization(mapInstance, markers, polygons) {
+    markers.forEach(marker => mapInstance.removeLayer(marker));
+    markers.length = 0;
+    polygons.forEach(polygon => mapInstance.removeLayer(polygon));
+    polygons.length = 0;
+}
+
+/**
+ * Render all buildings with their classrooms
+ */
+function renderBuildings(mapInstance, allClassrooms, inUseClassrooms, filteredCourses, options) {
     Object.keys(buildingCoordinates).forEach(buildingName => {
         const buildingData = buildingCoordinates[buildingName];
         if (!buildingData.corners || !allClassrooms[buildingName]) {
             return;
         }
 
-        // Draw building outline
+        renderBuildingOutline(mapInstance, buildingData, options.polygons);
+        renderBuildingClassrooms(
+            mapInstance,
+            buildingName,
+            buildingData,
+            allClassrooms[buildingName],
+            inUseClassrooms[buildingName] || new Set(),
+            filteredCourses,
+            options
+        );
+    });
+}
+
+/**
+ * Render building outline polygon
+ */
+function renderBuildingOutline(mapInstance, buildingData, polygonsArray) {
         const polygon = L.polygon(buildingData.corners, {
             color: 'transparent',
             fillColor: 'transparent',
             fillOpacity: 0.3,
             weight: 2
-        }).addTo(map);
-        buildingPolygons.push(polygon);
+    }).addTo(mapInstance);
+    polygonsArray.push(polygon);
+}
 
-        // Get building bounds for positioning classrooms
+/**
+ * Render all classrooms for a building
+ */
+function renderBuildingClassrooms(mapInstance, buildingName, buildingData, rooms, inUseRooms, filteredCourses, options) {
         const bounds = getBuildingBounds(buildingData.corners);
         const buildingRotation = getBuildingRotation(buildingData);
         const buildingConfig = buildingData.config || {};
-        const rooms = allClassrooms[buildingName];
-        const inUse = inUseClassrooms[buildingName] || new Set();
 
-        // Position classrooms inside the building
         rooms.forEach((room, index) => {
-            const isInUse = inUse.has(room);
             const coursesInRoom = getCoursesForRoom(filteredCourses, buildingName, room);
-
-            // Build tooltip content (not used in story mode, but kept for consistency)
-            let tooltipContent = '';
-            if (coursesInRoom.length > 0) {
-                tooltipContent = coursesInRoom.map(course => {
-                    const startTime = formatTime(course.start_minutes);
-                    const endTime = formatTime(course.end_minutes);
-                    const courseCode = (course.course || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    const courseTitle = (course.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}`;
-                }).join('<br><br>');
+        const isInUse = inUseRooms.has(room);
+        const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
+        
+        let marker;
+        if (options.useMaxEnrollment || options.useCapacity) {
+            marker = createEnrollmentClassroomMarker(
+                room,
+                buildingName,
+                coursesInRoom,
+                position,
+                buildingRotation,
+                mapInstance,
+                isInUse,
+                options.showRoomNumbers,
+                options
+            );
             } else {
-                tooltipContent = 'Available';
-            }
+            marker = createSimpleClassroomMarker(
+                room,
+                buildingName,
+                coursesInRoom,
+                position,
+                buildingRotation,
+                mapInstance,
+                isInUse,
+                options.showRoomNumbers,
+                options.interactive
+            );
+        }
+        
+        marker.addTo(mapInstance);
+        options.markers.push(marker);
+    });
+}
 
-            // Calculate position within building bounds
-            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
+/**
+ * Create a classroom marker with enrollment display
+ */
+function createEnrollmentClassroomMarker(room, buildingName, coursesInRoom, position, buildingRotation, mapInstance, isInUse, showRoomNumber, options) {
+    let tooltipContent;
+    let enrollmentInfo;
+    
+    if (options.useCapacity) {
+        tooltipContent = buildTooltipContentWithCapacity(coursesInRoom);
+        enrollmentInfo = buildCapacityEnrollmentInfo(buildingName, room, coursesInRoom);
+        // Update tooltip if capacity is hypothetical and room is available
+        if (coursesInRoom.length === 0 && enrollmentInfo.isHypotheticalCapacity) {
+            tooltipContent += '<br><em style="font-size: 0.9em; color: #666;">(Estimated capacity)</em>';
+        }
+    } else {
+        tooltipContent = buildSimpleTooltipContent(coursesInRoom);
+        enrollmentInfo = buildInteractiveEnrollmentInfo(coursesInRoom);
+    }
+    
+    const statusClass = getStatusClasses(isInUse, enrollmentInfo.isOverCapacity);
+    const statusClasses = {
+        statusClass,
+        borderClass: enrollmentInfo.isAtOrOverCapacity ? 'classroom-at-capacity-border' : '',
+        hypotheticalClass: enrollmentInfo.isHypotheticalCapacity ? 'classroom-hypothetical-capacity' : ''
+    };
+    
+    const classroomHtml = buildClassroomHtmlWithEnrollment(
+        room,
+        buildingName,
+        tooltipContent,
+        position,
+        buildingRotation,
+        showRoomNumber,
+        enrollmentInfo.display,
+        statusClasses
+    );
 
-            // Don't show room numbers in story mode (always at background zoom)
-            const showRoomNumber = false;
-            
-            // Create HTML for classroom box with rotation
-            const statusClass = isInUse ? 'classroom-in-use' : 'classroom-available';
+    const icon = createClassroomIcon(classroomHtml, mapInstance);
+    const marker = L.marker([position.lat, position.lng], { icon: icon });
+
+    if (tooltipContent) {
+        marker.bindPopup(tooltipContent);
+    }
+
+    return marker;
+}
+
+/**
+ * Build HTML for classroom cell with enrollment
+ */
+function buildClassroomHtmlWithEnrollment(room, buildingName, tooltipContent, position, buildingRotation, showRoomNumber, enrollmentDisplay, statusClasses) {
+    const { statusClass, borderClass, hypotheticalClass } = statusClasses;
+    const escapedTooltip = tooltipContent.replace(/"/g, '&quot;');
+    
+    return `
+        <div class="classroom-cell ${statusClass} ${borderClass} ${hypotheticalClass}"
+             data-building="${buildingName}"
+             data-room="${room}"
+             style="transform: rotate(${buildingRotation}deg); position: relative;"
+             title="${escapedTooltip}">
+            <div class="classroom-content">
+                ${showRoomNumber ? `<div class="classroom-number">${room}</div>` : ''}
+                ${showRoomNumber ? enrollmentDisplay : ''}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create a simple classroom marker (for background map)
+ */
+function createSimpleClassroomMarker(room, buildingName, coursesInRoom, position, buildingRotation, mapInstance, isInUse, showRoomNumber, interactive) {
+    const tooltipContent = buildSimpleTooltipContent(coursesInRoom);
+    const statusClass = isInUse ? 'classroom-in-use' : 'classroom-available';
+    
             const classroomHtml = `
                 <div class="classroom-cell ${statusClass}"
                      data-building="${buildingName}"
                      data-room="${room}"
-                     style="transform: rotate(${buildingRotation}deg);">
+             style="transform: rotate(${buildingRotation}deg);">
                     <div class="classroom-content">
                         ${showRoomNumber ? `<div class="classroom-number">${room}</div>` : ''}
                     </div>
                 </div>
             `;
 
-            // Create custom icon with the classroom box
-            const iconSize = getIconSize();
-            const halfSize = iconSize / 2;
-            const icon = L.divIcon({
-                className: 'classroom-marker',
-                html: classroomHtml,
-                iconSize: [iconSize, iconSize],
-                iconAnchor: [halfSize, halfSize]
-            });
-
-            // Create marker at calculated position
-            const marker = L.marker([position.lat, position.lng], { 
-                icon: icon,
-                interactive: false // Disable interaction
-            });
-
-            marker.addTo(map);
-            classroomMarkers.push(marker);
-        });
+    const icon = createClassroomIcon(classroomHtml, mapInstance);
+    return L.marker([position.lat, position.lng], { 
+        icon: icon,
+        interactive: interactive
     });
+}
+
+/**
+ * Build enrollment display for interactive map (uses max_enrollment)
+ */
+function buildInteractiveEnrollmentInfo(coursesInRoom) {
+    let enrollmentDisplay = '';
+    let isOverCapacity = false;
+
+    if (coursesInRoom.length > 0) {
+        const firstCourse = coursesInRoom[0];
+        if (hasValidEnrollmentAndMaxEnrollment(firstCourse)) {
+            enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.max_enrollment}</div>`;
+            isOverCapacity = firstCourse.current_enrollment > firstCourse.max_enrollment;
+        }
+    }
+
+    return { display: enrollmentDisplay, isOverCapacity };
+}
+
+/**
+ * Check if course has valid enrollment and max enrollment data
+ */
+function hasValidEnrollmentAndMaxEnrollment(course) {
+    return course.current_enrollment !== null && 
+           course.current_enrollment !== undefined &&
+           course.max_enrollment !== null && 
+           course.max_enrollment !== undefined;
+}
+
+/**
+ * Get CSS classes for classroom status
+ */
+function getStatusClasses(isInUse, isOverCapacity) {
+    if (!isInUse) {
+        return 'classroom-available';
+    }
+    return isOverCapacity ? 'classroom-over-capacity' : 'classroom-in-use';
 }
 
 /**
@@ -599,124 +1008,18 @@ function renderInteractiveVisualization() {
         return;
     }
 
-    // Clear existing markers and polygons
-    interactiveClassroomMarkers.forEach(marker => interactiveMap.removeLayer(marker));
-    interactiveClassroomMarkers = [];
-    interactiveBuildingPolygons.forEach(polygon => interactiveMap.removeLayer(polygon));
-    interactiveBuildingPolygons = [];
-
-    // Filter courses based on current selections (these are the active courses)
+    clearVisualization(interactiveMap, interactiveClassroomMarkers, interactiveBuildingPolygons);
+    
     const filteredCourses = filterInteractiveCourses();
-
-    // Get all classrooms by building
     const allClassrooms = getAllClassroomsByBuilding();
-
-    // Get which classrooms are currently in use
     const inUseClassrooms = getInUseClassrooms(filteredCourses);
 
-    // Render buildings
-    Object.keys(buildingCoordinates).forEach(buildingName => {
-        const buildingData = buildingCoordinates[buildingName];
-        if (!buildingData.corners || !allClassrooms[buildingName]) {
-            return;
-        }
-
-        // Draw building outline
-        const polygon = L.polygon(buildingData.corners, {
-            color: 'transparent',
-            fillColor: 'transparent',
-            fillOpacity: 0.3,
-            weight: 2
-        }).addTo(interactiveMap);
-        interactiveBuildingPolygons.push(polygon);
-
-        // Get building bounds for positioning classrooms
-        const bounds = getBuildingBounds(buildingData.corners);
-        const buildingRotation = getBuildingRotation(buildingData);
-        const buildingConfig = buildingData.config || {};
-        const rooms = allClassrooms[buildingName];
-        const inUse = inUseClassrooms[buildingName] || new Set();
-
-        // Position classrooms inside the building
-        rooms.forEach((room, index) => {
-            const isInUse = inUse.has(room);
-            const coursesInRoom = getCoursesForRoom(filteredCourses, buildingName, room);
-
-            // Build tooltip content
-            let tooltipContent = '';
-            if (coursesInRoom.length > 0) {
-                tooltipContent = coursesInRoom.map(course => {
-                    const startTime = formatTime(course.start_minutes);
-                    const endTime = formatTime(course.end_minutes);
-                    const courseCode = (course.course || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    const courseTitle = (course.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}`;
-                }).join('<br><br>');
-            } else {
-                tooltipContent = 'Available';
-            }
-
-            // Build enrollment display
-            let enrollmentDisplay = '';
-            let isOverCapacity = false;
-            if (coursesInRoom.length > 0) {
-                const firstCourse = coursesInRoom[0];
-                if (firstCourse.current_enrollment !== null && firstCourse.current_enrollment !== undefined &&
-                    firstCourse.max_enrollment !== null && firstCourse.max_enrollment !== undefined) {
-                    enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.max_enrollment}</div>`;
-                    // Check if class is over capacity
-                    isOverCapacity = firstCourse.current_enrollment > firstCourse.max_enrollment;
-                }
-            }
-
-            // Calculate position within building bounds using building config
-            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
-
-            // Check if we're at max zoom to show room numbers
-            const currentZoom = interactiveMap.getZoom();
-            const maxZoom = 19;
-            const showRoomNumber = currentZoom === maxZoom;
-            
-            // Create HTML for classroom box with rotation
-            // Use yellow for over-capacity classes, red for in-use but not over-capacity, green for available
-            let statusClass = 'classroom-available';
-            if (isInUse) {
-                statusClass = isOverCapacity ? 'classroom-over-capacity' : 'classroom-in-use';
-            }
-            const classroomHtml = `
-                <div class="classroom-cell ${statusClass}"
-                     data-building="${buildingName}"
-                     data-room="${room}"
-                     style="transform: rotate(${buildingRotation}deg);"
-                     title="${tooltipContent.replace(/"/g, '&quot;')}">
-                    <div class="classroom-content">
-                        ${showRoomNumber ? `<div class="classroom-number">${room}</div>` : ''}
-                        ${showRoomNumber ? enrollmentDisplay : ''}
-                    </div>
-                </div>
-            `;
-
-            // Create custom icon with the classroom box
-            const iconSize = getInteractiveIconSize();
-            const halfSize = iconSize / 2;
-            const icon = L.divIcon({
-                className: 'classroom-marker',
-                html: classroomHtml,
-                iconSize: [iconSize, iconSize],
-                iconAnchor: [halfSize, halfSize]
-            });
-
-            // Create marker at calculated position
-            const marker = L.marker([position.lat, position.lng], { icon: icon });
-
-            // Add popup with course info
-            if (tooltipContent) {
-                marker.bindPopup(tooltipContent);
-            }
-
-            marker.addTo(interactiveMap);
-            interactiveClassroomMarkers.push(marker);
-        });
+    renderBuildings(interactiveMap, allClassrooms, inUseClassrooms, filteredCourses, {
+        markers: interactiveClassroomMarkers,
+        polygons: interactiveBuildingPolygons,
+        showRoomNumbers: shouldShowRoomNumber(interactiveMap),
+        interactive: true,
+        useMaxEnrollment: true
     });
 
     console.log(`Rendered ${interactiveClassroomMarkers.length} classroom markers on interactive map`);
@@ -726,83 +1029,34 @@ function renderInteractiveVisualization() {
  * Initialize the capacity-based Leaflet map
  */
 function initCapacityMap() {
-    // Define the four corner points (same as map02.html)
-    const nw = [44.4788666, -73.1991804];
-    const ne = [44.4774707, -73.1990634];
-    const se = [44.4775079, -73.1971789];
-    const sw = [44.4789095, -73.1972329];
+    const center = calculateMapCenter();
     
-    // Calculate center point from the corner points
-    const allLats = [nw[0], ne[0], se[0], sw[0]];
-    const allLngs = [nw[1], ne[1], se[1], sw[1]];
-    
-    const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
-    const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
-    const initialZoom = 19;
-
-    // Initialize the capacity map
     capacityMap = L.map('map-container-capacity', {
-        minZoom: 14  // Prevent zooming out beyond level 14
+        minZoom: CONSTANTS.MIN_ZOOM,
+        zoomControl: true
     });
 
-    // Set the initial view to center with zoom level 19
-    capacityMap.setView([centerLat, centerLng], initialZoom);
-
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(capacityMap);
-
-    // Add zoom event listener to update marker sizes and room number visibility
-    capacityMap.on('zoomend', () => {
-        renderCapacityVisualization();
-    });
+    capacityMap.setView(center, CONSTANTS.CAPACITY_MAP_ZOOM);
+    addOSMTileLayer(capacityMap);
+    setupMapZoomListener(capacityMap, renderCapacityVisualization);
 
     console.log('Capacity map initialized');
+}
+
+/**
+ * Setup zoom event listener for a map
+ */
+function setupMapZoomListener(mapInstance, renderCallback) {
+    mapInstance.on('zoomend', renderCallback);
 }
 
 /**
  * Set up the day selector buttons for capacity map
  */
 function setupCapacityDaySelector() {
-    const days = [
-        { code: 'M', label: 'Mon' },
-        { code: 'T', label: 'Tue' },
-        { code: 'W', label: 'Wed' },
-        { code: 'R', label: 'Thu' },
-        { code: 'F', label: 'Fri' }
-    ];
-
-    const container = document.getElementById('day-selector-capacity');
-    if (!container) return;
-    
-    container.innerHTML = '<label class="control-label">Day:</label><div class="day-buttons"></div>';
-    const buttonsContainer = container.querySelector('.day-buttons');
-
-    days.forEach(day => {
-        const button = document.createElement('button');
-        button.textContent = day.label;
-        button.className = 'day-button';
-        button.dataset.day = day.code;
-
-        if (day.code === capacitySelectedDay) {
-            button.classList.add('active');
-        }
-
-        button.addEventListener('click', () => {
-            capacitySelectedDay = day.code;
-            // Update button states
-            buttonsContainer.querySelectorAll('.day-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            button.classList.add('active');
-
-            // Re-render capacity visualization
+    setupDaySelector('day-selector-capacity', capacitySelectedDay, (dayCode) => {
+        capacitySelectedDay = dayCode;
             renderCapacityVisualization();
-        });
-
-        buttonsContainer.appendChild(button);
     });
 }
 
@@ -810,116 +1064,36 @@ function setupCapacityDaySelector() {
  * Set up the time slider for capacity map
  */
 function setupCapacityTimeSlider() {
-    const container = document.getElementById('time-control-capacity');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <label class="control-label">Time:</label>
-        <div class="time-slider-container">
-            <input type="range" id="time-slider-capacity" min="${minTime}" max="${maxTime}" value="${capacitySelectedTime}" step="15">
-            <div class="time-display">
-                <span id="time-display-capacity">${formatTime(capacitySelectedTime)}</span>
-            </div>
-        </div>
-    `;
-
-    const slider = document.getElementById('time-slider-capacity');
-    const display = document.getElementById('time-display-capacity');
-
-    if (slider && display) {
-        slider.addEventListener('input', (e) => {
-            capacitySelectedTime = parseInt(e.target.value);
-            display.textContent = formatTime(capacitySelectedTime);
+    setupTimeSlider(
+        'time-control-capacity',
+        'time-slider-capacity',
+        'time-display-capacity',
+        capacitySelectedTime,
+        (newTime) => {
+            capacitySelectedTime = newTime;
             renderCapacityVisualization();
-        });
     }
+    );
 }
 
 /**
  * Filter courses for capacity map based on selected day and time
  */
 function filterCapacityCourses() {
-    return courseData.filter(course => {
-        // Match selected day
-        if (course.day !== capacitySelectedDay) {
-            return false;
-        }
-
-        // Check if selected time falls within course time range
-        return capacitySelectedTime >= course.start_minutes && capacitySelectedTime <= course.end_minutes;
-    });
+    return filterCoursesByDayAndTime(capacitySelectedDay, capacitySelectedTime);
 }
 
 /**
- * Render the capacity-based visualization on the capacity map
+ * Build enrollment display information for capacity map (uses capacity field)
  */
-function renderCapacityVisualization() {
-    if (!capacityMap) {
-        console.error('Capacity map not initialized');
-        return;
-    }
+function buildCapacityEnrollmentInfo(buildingName, room, coursesInRoom) {
+    let enrollmentDisplay = '';
+    let isOverCapacity = false;
+    let isAtOrOverCapacity = false;
+    let isHypotheticalCapacity = false;
 
-    // Clear existing markers and polygons
-    capacityClassroomMarkers.forEach(marker => capacityMap.removeLayer(marker));
-    capacityClassroomMarkers = [];
-    capacityBuildingPolygons.forEach(polygon => capacityMap.removeLayer(polygon));
-    capacityBuildingPolygons = [];
-
-    // Filter courses based on current selections
-    const filteredCourses = filterCapacityCourses();
-
-    // Get all classrooms by building
-    const allClassrooms = getAllClassroomsByBuilding();
-
-    // Get which classrooms are currently in use
-    const inUseClassrooms = getInUseClassrooms(filteredCourses);
-
-    // Render buildings
-    Object.keys(buildingCoordinates).forEach(buildingName => {
-        const buildingData = buildingCoordinates[buildingName];
-        if (!buildingData.corners || !allClassrooms[buildingName]) {
-            return;
-        }
-
-        // Draw building outline
-        const polygon = L.polygon(buildingData.corners, {
-            color: 'transparent',
-            fillColor: 'transparent',
-            fillOpacity: 0.3,
-            weight: 2
-        }).addTo(capacityMap);
-        capacityBuildingPolygons.push(polygon);
-
-        // Get building bounds for positioning classrooms
-        const bounds = getBuildingBounds(buildingData.corners);
-        const buildingRotation = getBuildingRotation(buildingData);
-        const buildingConfig = buildingData.config || {};
-        const rooms = allClassrooms[buildingName];
-        const inUse = inUseClassrooms[buildingName] || new Set();
-
-        // Position classrooms inside the building
-        rooms.forEach((room, index) => {
-            const isInUse = inUse.has(room);
-            const coursesInRoom = getCoursesForRoom(filteredCourses, buildingName, room);
-
-            // Build tooltip content
-            let tooltipContent = '';
-            if (coursesInRoom.length > 0) {
-                tooltipContent = coursesInRoom.map(course => {
-                    const startTime = formatTime(course.start_minutes);
-                    const endTime = formatTime(course.end_minutes);
-                    const courseCode = (course.course || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    const courseTitle = (course.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    const capacityNote = course.capacity_from_csv === false ? '<br><em style="font-size: 0.9em; color: #666;">(Estimated capacity)</em>' : '';
-                    return `${courseCode} - ${courseTitle}<br>${startTime} - ${endTime}${capacityNote}`;
-                }).join('<br><br>');
-            } else {
-                tooltipContent = 'Available';
-            }
-
-            // Get capacity for this room (from any course that uses this room)
+    // Get room capacity from any course that uses this room
             let roomCapacity = null;
-            let isHypotheticalCapacity = false;
             const roomCourse = courseData.find(course => 
                 course.building === buildingName && 
                 course.room === room && 
@@ -931,86 +1105,54 @@ function renderCapacityVisualization() {
                 isHypotheticalCapacity = !roomCourse.capacity_from_csv;
             }
 
-            // Build enrollment display using capacity
-            let enrollmentDisplay = '';
-            let isOverCapacity = false;
-            let isAtOrOverCapacity = false;
             if (coursesInRoom.length > 0) {
                 const firstCourse = coursesInRoom[0];
-                if (firstCourse.current_enrollment !== null && firstCourse.current_enrollment !== undefined &&
-                    firstCourse.capacity !== null && firstCourse.capacity !== undefined) {
+        if (hasValidEnrollmentAndCapacity(firstCourse)) {
                     enrollmentDisplay = `<div class="classroom-enrollment">${firstCourse.current_enrollment}/${firstCourse.capacity}</div>`;
-                    // Check if class is over capacity
                     isOverCapacity = firstCourse.current_enrollment > firstCourse.capacity;
-                    // Check if at or over capacity for border
                     isAtOrOverCapacity = firstCourse.current_enrollment >= firstCourse.capacity;
-                    // Update hypothetical capacity flag from the course
                     if (firstCourse.capacity_from_csv === false) {
                         isHypotheticalCapacity = true;
                     }
                 }
             } else if (roomCapacity !== null) {
-                // Show capacity for available rooms
                 enrollmentDisplay = `<div class="classroom-enrollment">0/${roomCapacity}</div>`;
             }
 
-            // Update tooltip if capacity is hypothetical and room is available
-            if (coursesInRoom.length === 0 && isHypotheticalCapacity) {
-                tooltipContent += '<br><em style="font-size: 0.9em; color: #666;">(Estimated capacity)</em>';
-            }
+    return { display: enrollmentDisplay, isOverCapacity, isAtOrOverCapacity, isHypotheticalCapacity };
+}
 
-            // Calculate position within building bounds using building config
-            const position = calculateClassroomPosition(bounds, buildingData.corners, index, rooms.length, buildingConfig);
+/**
+ * Check if course has valid enrollment and capacity data
+ */
+function hasValidEnrollmentAndCapacity(course) {
+    return course.current_enrollment !== null && 
+           course.current_enrollment !== undefined &&
+           course.capacity !== null && 
+           course.capacity !== undefined;
+}
 
-            // Check if we're at max zoom to show room numbers
-            const currentZoom = capacityMap.getZoom();
-            const maxZoom = 19;
-            const showRoomNumber = currentZoom === maxZoom;
-            
-            // Create HTML for classroom box with rotation
-            // Use yellow for over-capacity classes, red for in-use but not over-capacity, green for available
-            let statusClass = 'classroom-available';
-            if (isInUse) {
-                statusClass = isOverCapacity ? 'classroom-over-capacity' : 'classroom-in-use';
-            }
-            // Add border class if at or over capacity
-            const borderClass = isAtOrOverCapacity ? 'classroom-at-capacity-border' : '';
-            // Add hypothetical class if capacity is estimated
-            const hypotheticalClass = isHypotheticalCapacity ? 'classroom-hypothetical-capacity' : '';
-            const classroomHtml = `
-                <div class="classroom-cell ${statusClass} ${borderClass} ${hypotheticalClass}"
-                     data-building="${buildingName}"
-                     data-room="${room}"
-                     style="transform: rotate(${buildingRotation}deg); position: relative;"
-                     title="${tooltipContent.replace(/"/g, '&quot;')}">
-                    <div class="classroom-content">
-                        ${showRoomNumber ? `<div class="classroom-number">${room}</div>` : ''}
-                        ${showRoomNumber ? enrollmentDisplay : ''}
-                    </div>
-                </div>
-            `;
+/**
+ * Render the capacity-based visualization on the capacity map
+ */
+function renderCapacityVisualization() {
+    if (!capacityMap) {
+        console.error('Capacity map not initialized');
+        return;
+    }
 
-            // Create custom icon with the classroom box
-            const iconSize = getInteractiveIconSize(capacityMap);
-            const halfSize = iconSize / 2;
-            const icon = L.divIcon({
-                className: 'classroom-marker',
-                html: classroomHtml,
-                iconSize: [iconSize, iconSize],
-                iconAnchor: [halfSize, halfSize]
-            });
+    clearVisualization(capacityMap, capacityClassroomMarkers, capacityBuildingPolygons);
+    
+    const filteredCourses = filterCapacityCourses();
+    const allClassrooms = getAllClassroomsByBuilding();
+    const inUseClassrooms = getInUseClassrooms(filteredCourses);
 
-            // Create marker at calculated position
-            const marker = L.marker([position.lat, position.lng], { icon: icon });
-
-            // Add popup with course info
-            if (tooltipContent) {
-                marker.bindPopup(tooltipContent);
-            }
-
-            marker.addTo(capacityMap);
-            capacityClassroomMarkers.push(marker);
-        });
+    renderBuildings(capacityMap, allClassrooms, inUseClassrooms, filteredCourses, {
+        markers: capacityClassroomMarkers,
+        polygons: capacityBuildingPolygons,
+        showRoomNumbers: shouldShowRoomNumber(capacityMap),
+        interactive: true,
+        useCapacity: true
     });
 
     console.log(`Rendered ${capacityClassroomMarkers.length} classroom markers on capacity map`);
@@ -1456,7 +1598,6 @@ function populateInsightsSection() {
     }
     
     // Show top 10 opportunities
-    const dayNames = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'R': 'Thursday', 'F': 'Friday' };
     
     opportunities.slice(0, 10).forEach((opp, index) => {
         const card = document.createElement('div');
@@ -1471,7 +1612,7 @@ function populateInsightsSection() {
                 <strong>Current situation:</strong> ${opp.problemClass.enrollment} students in 
                 ${opp.problemClass.building} ${opp.problemClass.room} (capacity: ${opp.problemClass.currentCapacity})
                 <br>
-                <strong>Time:</strong> ${dayNames[opp.problemClass.day] || opp.problemClass.day}, ${opp.problemClass.time}
+                <strong>Time:</strong> ${DAY_NAMES[opp.problemClass.day] || opp.problemClass.day}, ${opp.problemClass.time}
             </div>
             <div class="recommendation-solutions">
                 <strong>Suggested alternatives:</strong>
