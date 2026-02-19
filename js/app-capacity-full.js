@@ -1,7 +1,7 @@
 /**
  * University Course Schedule Visualization - Room-Based Capacity (Full View)
  * 
- * This is a standalone version of the capacity visualization from story.html
+ * This is a standalone version of the capacity visualization from index.html
  */
 
 // ============================================================================
