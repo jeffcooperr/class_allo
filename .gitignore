@@ -1,3 +1,28 @@
+# Python scripts (not needed for web pages)
 converter.py
+analytics.py
+analyze_monday_1315.py
+scripts/
+
+# Unused HTML pages
+index.html
+map.html
+map01.html
+map02.html
+
+# Unused JavaScript files
+js/app-map.js
+js/app-map01.js
+js/app-map02.js
+js/app.js
+js/config.js
+js/Untitled
+
+# Unused data files
+data/2024 Fall.csv
+data/2025 Spring.csv
+data/2025_fall_courses.csv
+data/rooms.csv
+
+# Environment and config files
 .env
-config.js

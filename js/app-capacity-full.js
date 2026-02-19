@@ -746,14 +746,14 @@ function getRoomInfo(buildingName, room, coursesInRoom) {
     const tooltipContent = buildTooltipContent(coursesInRoom);
     const capacityInfo = getRoomCapacityInfo(buildingName, room, coursesInRoom);
     const enrollmentInfo = buildEnrollmentInfo(coursesInRoom, capacityInfo);
-    const finalTooltip = updateTooltipForHypotheticalCapacity(tooltipContent, coursesInRoom, capacityInfo.isHypothetical);
+    const finalTooltip = updateTooltipForHypotheticalCapacity(tooltipContent, coursesInRoom, capacityInfo.isHypotheticalCapacity);
     
     return {
         tooltip: finalTooltip,
         enrollmentDisplay: enrollmentInfo.display,
         isOverCapacity: enrollmentInfo.isOverCapacity,
         isAtOrOverCapacity: enrollmentInfo.isAtOrOverCapacity,
-        isHypotheticalCapacity: capacityInfo.isHypothetical
+        isHypotheticalCapacity: capacityInfo.isHypotheticalCapacity
     };
 }
 
@@ -795,21 +795,23 @@ function getRoomCapacityInfo(buildingName, room, coursesInRoom) {
     let roomCapacity = null;
     let isHypotheticalCapacity = false;
 
+    // Get room capacity from any course that uses this room (from full dataset)
+    const roomCourse = courseData.find(course => 
+        course.building === buildingName && 
+        course.room === room && 
+        course.capacity !== null && 
+        course.capacity !== undefined
+    );
+    if (roomCourse) {
+        roomCapacity = roomCourse.capacity;
+        isHypotheticalCapacity = !roomCourse.capacity_from_csv;
+    }
+
+    // If there are courses currently in the room, check if their capacity is hypothetical
     if (coursesInRoom.length > 0) {
         const firstCourse = coursesInRoom[0];
         if (firstCourse.capacity_from_csv === false) {
             isHypotheticalCapacity = true;
-        }
-    } else {
-        const roomCourse = courseData.find(course => 
-            course.building === buildingName && 
-            course.room === room && 
-            course.capacity !== null && 
-            course.capacity !== undefined
-        );
-        if (roomCourse) {
-            roomCapacity = roomCourse.capacity;
-            isHypotheticalCapacity = !roomCourse.capacity_from_csv;
         }
     }
 
